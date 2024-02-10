@@ -13,35 +13,65 @@
 namespace xitren::modbus {
 
 namespace types {
-using bits_array_type         = std::array<bool, modbus_base::max_read_bits>;
-using array_type              = std::array<std::uint16_t, modbus_base::max_read_registers>;
-using callback_function_type  = std::function<void(exception)>;
-using callback_exception_type = std::function<void(exception, std::uint8_t)>;
-using callback_bits_type      = std::function<void(exception, bool*, bool*)>;
-using callback_regs_type      = std::function<void(exception, std::uint16_t*, std::uint16_t*)>;
-using callback_types
-    = std::variant<callback_function_type, callback_exception_type, callback_bits_type, callback_regs_type>;
-};    // namespace types
+using bits_array_type        = std::array<bool, modbus_base::max_read_bits>;
+using array_type             = std::array<std::uint16_t, modbus_base::max_read_registers>;
+using callback_function_type = std::function<void(exception)>;
+using callback_logs_type
+    = std::function<void(exception, std::uint16_t address, std::uint8_t* begin, std::uint8_t* end)>;
+using callback_identification_type = std::function<void(exception, std::uint8_t address, char* begin, char* end)>;
+using callback_bits_type           = std::function<void(exception, bool*, bool*)>;
+using callback_regs_type           = std::function<void(exception, std::uint16_t*, std::uint16_t*)>;
+}    // namespace types
 
 class modbus_command {
-    static constexpr std::size_t command_buffer_max = 325;
-
     template <typename T, size_t Size>
-    friend containers::circular_buffer<T, Size>&
-    operator<<(containers::circular_buffer<T, Size>&, modbus_command const&);
-
+    friend utils::circular_buffer<T, Size>&
+    operator<<(utils::circular_buffer<T, Size>&, modbus_command const&);
     template <typename T, size_t Size>
-    friend containers::circular_buffer<T, Size>&
-    operator>>(containers::circular_buffer<T, Size>&, modbus_command&);
+    friend utils::circular_buffer<T, Size>&
+    operator>>(utils::circular_buffer<T, Size>&, modbus_command&);
+
+protected:
+    using iterator       = std::uint8_t*;
+    using const_iterator = std::uint8_t const*;
 
 public:
-    using command_vault_type    = std::aligned_storage_t<command_buffer_max, 1>;
-    using command_vault_pointer = command_vault_type*;
-    using msg_type              = packet_accessor<modbus_base::max_adu_length>;
+    static constexpr std::size_t command_buffer_max = 370;
+    using command_vault_type                        = std::aligned_storage_t<command_buffer_max, 1>;
+    using msg_type                                  = packet_accessor<modbus_base::max_adu_length>;
 
     virtual ~modbus_command() noexcept = default;
 
-    virtual std::shared_ptr<modbus_command> clone(command_vault_pointer) noexcept = 0;
+    virtual modbus_command*
+    clone(command_vault_type&) const noexcept
+        = 0;
+
+    virtual std::shared_ptr<modbus_command>
+    clone() const noexcept = 0;
+
+    virtual inline iterator
+    begin() noexcept
+        = 0;
+
+    virtual inline const_iterator
+    begin() const noexcept
+        = 0;
+
+    virtual inline iterator
+    end() noexcept
+        = 0;
+
+    virtual inline const_iterator
+    end() const noexcept
+        = 0;
+
+    virtual inline std::size_t
+    size() noexcept
+        = 0;
+
+    virtual inline std::size_t
+    size() const noexcept
+        = 0;
 
     virtual exception
     receive(msg_type const&) noexcept
@@ -49,16 +79,10 @@ public:
         return error_ = exception::no_error;
     }
 
-    inline constexpr msg_type&
-    msg() noexcept
+    virtual void
+    no_answer() noexcept
     {
-        return msg_;
-    }
-
-    [[nodiscard]] inline msg_type const&
-    msg() const noexcept
-    {
-        return msg_;
+        error_ = exception::bad_slave;
     }
 
     inline std::uint8_t
@@ -86,7 +110,7 @@ public:
     }
 
 protected:
-    modbus_command(std::uint8_t slave, std::uint16_t address) noexcept : slave_{slave}, address_{address} {}
+    constexpr modbus_command(std::uint8_t slave, std::uint16_t address) noexcept : slave_{slave}, address_{address} {}
 
     inline std::uint16_t
     address() noexcept
@@ -107,53 +131,52 @@ protected:
     }
 
     template <typename Header, typename Fields, typename Type>
-    inline constexpr std::pair<msg_type::fields_out<Header, Fields, Type>, exception>
-    input_msg(std::uint8_t slave, msg_type const& message) noexcept
+    inline constexpr std::pair<msg_type::fields_out_ptr<Header, Fields, Type>, exception>
+    input_msg(std::uint8_t slave, msg_type const& message) const noexcept
     {
-        auto pack = message.template deserialize<Header, Fields, Type, crc16ansi>();
-        if (pack.header.slave_id != slave) [[unlikely]] {
+        auto pack = message.template deserialize_no_check<Header, Fields, Type, crc16ansi>();
+        if (pack.header->slave_id != slave) [[unlikely]] {
             return {{}, exception::bad_slave};
         }
-        if (!pack.valid) [[unlikely]] {
-            return {{}, exception::bad_crc};
-        }
-        if (pack.header.function_code & error_reply_mask) [[unlikely]] {
+        if (pack.header->function_code & error_reply_mask) [[unlikely]] {
             return {{}, exception::illegal_function};
         }
         return {pack, exception::no_error};
     }
 
-private:
     std::uint8_t  slave_;
     std::uint16_t address_;
-    msg_type      msg_{};
-    exception     error_{exception::no_error};
+
+private:
+    exception error_{exception::no_error};
 };
 
 template <typename T, size_t Size>
-containers::circular_buffer<T, Size>&
-operator<<(containers::circular_buffer<T, Size>& buffer, modbus_command const& in_data)
+utils::circular_buffer<T, Size>&
+operator<<(utils::circular_buffer<T, Size>& buffer, modbus_command const& in_data)
 {
-    auto const begin{in_data.msg().storage().begin()};
-    for (auto i{begin}; i != (begin + in_data.msg().size()); i++) {
+    auto const begin{in_data.begin()};
+    for (auto i{begin}; i != (begin + in_data.size()); i++) {
         buffer.push(*i);
     }
     return buffer;
 }
 
 template <typename T, size_t Size>
-containers::circular_buffer<T, Size>&
-operator>>(containers::circular_buffer<T, Size>& buffer, modbus_command& out_data)
+utils::circular_buffer<T, Size>&
+operator>>(utils::circular_buffer<T, Size>& buffer, modbus_command& out_data)
 {
-    std::size_t i{0};
-    auto        it = out_data.msg().storage().begin();
-    while (!buffer.empty() && (i < out_data.msg().storage().size())) {
+    modbus_command::msg_type buff{};
+    std::size_t              i{0};
+    auto                     it = buff.storage().begin();
+    while (!buffer.empty() && (i < buff.storage().size())) {
         auto& item = buffer.front();
         *(it++)    = item;
         i++;
         buffer.pop();
     }
-    out_data.msg().size(i);
+    buff.size(i);
+    out_data.receive(buff);
     return buffer;
 }
 

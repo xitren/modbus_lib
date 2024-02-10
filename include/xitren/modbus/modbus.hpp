@@ -1,5 +1,5 @@
 #pragma once
-
+#include <loveka/components/utils/log.hpp>
 #include <xitren/modbus/packet.hpp>
 
 #include <limits>
@@ -42,6 +42,9 @@ enum class function : std::uint8_t {
     write_and_read_registers = 0x17,
     mask_write_register      = 0x16,
     read_fifo                = 0x18,
+    read_log                 = 0x41,
+    set_max_log_level        = 0x42,
+    get_current_log_level    = 0x43,
 
     read_file_record  = 0x14,
     write_file_record = 0x15,
@@ -96,6 +99,36 @@ enum class master_state {
     unrecoverable_error
 };
 
+enum class read_device_id_code : std::uint8_t {
+    basic_identity_stream    = 0x01,
+    regular_identity_stream  = 0x02,
+    extended_identity_stream = 0x03,
+    individual_access        = 0x04
+};
+
+enum class identification_id : std::uint8_t {
+    basic_identity_stream    = 0x01,
+    regular_identity_stream  = 0x02,
+    extended_identity_stream = 0x03,
+    individual_access        = 0x04
+};
+
+enum class object_id_code : std::uint8_t {
+    vendor_name          = 0x00,
+    product_code         = 0x01,
+    major_minor_revision = 0x02,
+    max                  = 0x03
+};
+
+enum class conformity_code : std::uint8_t {
+    basic_identification        = 0x01,
+    regular_identification      = 0x02,
+    extended_identification     = 0x03,
+    basic_identification_ind    = 0x81,
+    regular_identification_ind  = 0x82,
+    extended_identification_ind = 0x83
+};
+
 struct __attribute__((__packed__)) null_field {};
 
 struct __attribute__((__packed__)) header {
@@ -104,25 +137,53 @@ struct __attribute__((__packed__)) header {
 };
 
 struct __attribute__((__packed__)) request_fields_read {
-    func::msb_t<std::uint16_t> starting_address{};
-    func::msb_t<std::uint16_t> quantity{};
+    msb_t<std::uint16_t> starting_address{};
+    msb_t<std::uint16_t> quantity{};
 };
 
 struct __attribute__((__packed__)) request_fields_wr_single {
-    func::msb_t<std::uint16_t> starting_address{};
-    func::msb_t<std::uint16_t> quantity{};
-    std::uint8_t               count{};
+    msb_t<std::uint16_t> starting_address{};
+    msb_t<std::uint16_t> quantity{};
+    std::uint8_t         count{};
+};
+
+struct __attribute__((__packed__)) request_fields_wr_multi {
+    msb_t<std::uint16_t> starting_address{};
+    msb_t<std::uint16_t> quantity{};
+    std::uint8_t         count{};
 };
 
 struct __attribute__((__packed__)) request_fields_wr_mask {
-    func::msb_t<std::uint16_t> starting_address{};
-    func::msb_t<std::uint16_t> and_mask{};
-    func::msb_t<std::uint16_t> or_mask{};
+    msb_t<std::uint16_t> starting_address{};
+    msb_t<std::uint16_t> and_mask{};
+    msb_t<std::uint16_t> or_mask{};
 };
 
 struct __attribute__((__packed__)) request_fields_fifo {
-    func::msb_t<std::uint16_t> quantity{};
-    func::msb_t<std::uint16_t> count{};
+    msb_t<std::uint16_t> quantity{};
+    msb_t<std::uint16_t> count{};
+};
+
+struct __attribute__((__packed__)) request_fields_log {
+    msb_t<std::uint16_t> address{};
+    msb_t<std::uint16_t> quantity{};
+};
+
+struct __attribute__((__packed__)) request_identification {
+    std::uint8_t mei_type{};
+    std::uint8_t read_mode{};
+    std::uint8_t object_id{};
+};
+
+struct __attribute__((__packed__)) response_identification {
+    std::uint8_t mei_type{};
+    std::uint8_t read_mode{};
+    std::uint8_t conformity{};
+    std::uint8_t more_follows{};
+    std::uint8_t next_object_id{};
+    std::uint8_t number_of_objects{};
+    std::uint8_t object_id{};
+    std::uint8_t object_len{};
 };
 
 struct __attribute__((__packed__)) error_fields {
@@ -132,10 +193,12 @@ struct __attribute__((__packed__)) error_fields {
 class modbus_base {
 public:
     static constexpr std::uint8_t  broadcast_address      = 0;
+    static constexpr std::uint8_t  max_valid_address      = 247;
     static constexpr std::uint16_t max_read_bits          = 2000;
     static constexpr std::uint16_t max_write_bits         = 1968;
     static constexpr std::uint16_t max_read_registers     = 125;
     static constexpr std::uint16_t max_read_fifo          = 31;
+    static constexpr std::uint16_t max_read_log_bytes     = 250;
     static constexpr std::uint16_t max_write_registers    = 123;
     static constexpr std::uint16_t max_wr_write_registers = 121;
     static constexpr std::uint16_t max_wr_read_registers  = 125;
@@ -145,12 +208,17 @@ public:
     static constexpr std::size_t   max_function_id        = 0x7f;
     static constexpr std::uint16_t on_coil_value          = 0xff00;
     static constexpr std::uint16_t off_coil_value         = 0x0000;
+    static constexpr std::uint8_t  more_follows           = 0xff;
+    static constexpr std::uint8_t  no_more_follows        = 0x00;
+    static constexpr std::uint8_t  mei_type               = 0x0e;
 
     using request_type_read      = packet<header, request_fields_read, crc16ansi>;
     using request_type_wr_single = packet<header, request_fields_wr_single, crc16ansi>;
     using request_type_wr_mask   = packet<header, request_fields_wr_mask, crc16ansi>;
     using request_type_err       = packet<header, null_field, crc16ansi>;
-    using request_type_fifo      = packet<header, func::msb_t<std::uint16_t>, crc16ansi>;
+    using request_type_fifo      = packet<header, msb_t<std::uint16_t>, crc16ansi>;
+    using request_type_log       = packet<header, request_fields_log, crc16ansi>;
+    using request_type_log_level = packet<header, null_field, crc16ansi>;
     using msg_type               = packet_accessor<max_adu_length>;
 
 protected:
@@ -239,30 +307,35 @@ public:
     constexpr exception
     receive(InputIterator begin, InputIterator end) noexcept
     {
+        static_assert(sizeof(*begin) == 1);
         if (!idle()) [[unlikely]] {
             increment_counter(diagnostics_sub_function::return_bus_char_overrun_count);
             increment_counter(diagnostics_sub_function::return_server_busy_count);
+            ERROR(MODULE(modbus)) << "busy";
             return exception::slave_or_server_busy;
         }
         if ((end - begin) < min_adu_length) [[unlikely]] {
             increment_counter(diagnostics_sub_function::return_bus_comm_error_count);
+            ERROR(MODULE(modbus)) << "ADU < 3";
+            return exception::bad_data;
         }
-        if (static_cast<std::size_t>(end - begin) > input_msg_.storage().max_size()) [[unlikely]] {
-            std::copy(begin, begin + input_msg_.storage().max_size(), input_msg_.storage().begin());
-            input_msg_.size(input_msg_.storage().max_size());
-        } else [[likely]] {
-            std::copy(begin, end, input_msg_.storage().begin());
-            input_msg_.size(end - begin);
+        if (static_cast<std::size_t>(end - begin) > max_adu_length) [[unlikely]] {
+            increment_counter(diagnostics_sub_function::return_bus_comm_error_count);
+            ERROR(MODULE(modbus)) << "ADU > MAX";
+            return exception::bad_data;
         }
+        auto const crc_ptr        = end - sizeof(crc16ansi::value_type);
+        auto       crc            = data<crc16ansi::value_type>::deserialize(crc_ptr);
+        auto       crc_calculated = crc16ansi::calculate(begin, crc_ptr);
+        if (crc.get() != crc_calculated.get()) {
+            increment_counter(diagnostics_sub_function::return_bus_comm_error_count);
+            WARN(MODULE(modbus)) << "bad_crc";
+            return exception::bad_crc;
+        }
+        std::copy(begin, end, input_msg_.storage().begin());
+        input_msg_.size(end - begin);
+        TRACE(MODULE(modbus)) << "recv msg";
         return received();
-    }
-
-    exception
-    receive() noexcept
-    {
-        auto begin = input_msg_.storage().begin();
-        auto end   = input_msg_.storage().end();
-        return receive(begin, end);
     }
 
     virtual inline bool
@@ -300,9 +373,24 @@ public:
     {
         return output_msg_;
     }
+    virtual ~modbus_base() = default;
 };
 
-template <std::uint8_t Id, std::uint16_t Inputs, std::uint16_t Coils, std::uint16_t InputRegisters,
-          std::uint16_t HoldingRegisters, std::uint16_t Fifo = 1>
+template <std::uint16_t Inputs, std::uint16_t Coils, std::uint16_t InputRegisters, std::uint16_t HoldingRegisters,
+          std::uint16_t Fifo = 1>
 class modbus_slave;
+
+template <class T>
+concept modbus_slave_container = requires(T a, std::size_t s) {
+    {
+        a.size()
+    } -> std::same_as<typename T::size_type>;
+    {
+        a[s]
+    } -> std::same_as<typename T::value_type&>;
+};
+
+template <modbus_slave_container TInputs, modbus_slave_container TCoils, modbus_slave_container TInputRegisters,
+          modbus_slave_container THoldingRegisters, std::uint16_t Fifo>
+class modbus_slave_base;
 }    // namespace xitren::modbus

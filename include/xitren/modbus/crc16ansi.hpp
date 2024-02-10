@@ -15,11 +15,18 @@ public:
     using value_type = func::lsb_t<std::uint16_t>;
 
     template <crc::crc_iterator InputIterator>
-    static inline constexpr value_type
-    calculate(InputIterator begin, InputIterator end)
+    static constexpr value_type
+    calculate(InputIterator begin, InputIterator end) noexcept
     {
-        static_assert(sizeof(*begin) == 1);
+        static_assert(sizeof(*begin) == sizeof(std::uint8_t));
         return crc::crc16::calculate(begin, end);
+    }
+
+    template <std::size_t Size>
+    static consteval value_type
+    calculate(std::array<std::uint8_t, Size> const& data) noexcept
+    {
+        return crc::crc16::calculate(data);
     }
 };
 }    // namespace xitren::modbus
