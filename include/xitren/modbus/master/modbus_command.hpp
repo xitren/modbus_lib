@@ -25,11 +25,11 @@ using callback_regs_type           = std::function<void(exception, std::uint16_t
 
 class modbus_command {
     template <typename T, size_t Size>
-    friend utils::circular_buffer<T, Size>&
-    operator<<(utils::circular_buffer<T, Size>&, modbus_command const&);
+    friend containers::circular_buffer<T, Size>&
+    operator<<(containers::circular_buffer<T, Size>&, modbus_command const&);
     template <typename T, size_t Size>
-    friend utils::circular_buffer<T, Size>&
-    operator>>(utils::circular_buffer<T, Size>&, modbus_command&);
+    friend containers::circular_buffer<T, Size>&
+    operator>>(containers::circular_buffer<T, Size>&, modbus_command&);
 
 protected:
     using iterator       = std::uint8_t*;
@@ -152,8 +152,8 @@ private:
 };
 
 template <typename T, size_t Size>
-utils::circular_buffer<T, Size>&
-operator<<(utils::circular_buffer<T, Size>& buffer, modbus_command const& in_data)
+containers::circular_buffer<T, Size>&
+operator<<(containers::circular_buffer<T, Size>& buffer, modbus_command const& in_data)
 {
     auto const begin{in_data.begin()};
     for (auto i{begin}; i != (begin + in_data.size()); i++) {
@@ -163,8 +163,8 @@ operator<<(utils::circular_buffer<T, Size>& buffer, modbus_command const& in_dat
 }
 
 template <typename T, size_t Size>
-utils::circular_buffer<T, Size>&
-operator>>(utils::circular_buffer<T, Size>& buffer, modbus_command& out_data)
+containers::circular_buffer<T, Size>&
+operator>>(containers::circular_buffer<T, Size>& buffer, modbus_command& out_data)
 {
     modbus_command::msg_type buff{};
     std::size_t              i{0};

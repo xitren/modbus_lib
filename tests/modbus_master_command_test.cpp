@@ -67,7 +67,7 @@ arrays_match(std::array<T, Size> const& expected, std::array<T, Size1> const& ac
     return true;
 }
 
-using slave_type = modbus_slave<0x02, 10, 10, 10, 10, 64>;
+using slave_type = modbus_slave<10, 10, 10, 10, 64>;
 
 class test_slave : public slave_type {
 

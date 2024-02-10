@@ -39,8 +39,8 @@ public:
     using error_type    = packet<header, error_fields, crc16ansi>;
     using function_type = exception (*)(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>&);
     using function_table_type = std::array<function_type, max_function_id + 1>;
-    using fifo_type           = utils::circular_buffer<msb_t<std::uint16_t>, Fifo>;
-    using log_type            = utils::circular_buffer<std::uint8_t, utils::log::log_size>;
+    using fifo_type           = containers::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
+    using log_type            = containers::circular_buffer<std::uint8_t, xitren::modbus::log::log_size>;
 
     constexpr explicit modbus_slave_base(std::uint8_t slave_id, inputs_type const& inputs, coils_type& coils,
                                          input_regs_type const& input_regs, holding_regs_type& holding_regs)
@@ -82,11 +82,11 @@ public:
     {
         switch (state_) {
         case slave_state::idle:
-            TRACE(MODULE(modbus)) << "idle -> check";
+            TRACE() << "idle -> check";
             state_ = slave_state::checking_request;
             break;
         default:
-            WARN(MODULE(modbus)) << "state undef: " << static_cast<std::uint8_t>(state_);
+            WARN() << "state undef: " << static_cast<std::uint8_t>(state_);
             break;
         }
         return exception::no_error;
@@ -130,13 +130,13 @@ public:
 
         switch (state_) {
         case slave_state::checking_request:
-            head = data<header>::deserialize(input_msg_.storage().begin());
+            head = func::data<header>::deserialize(input_msg_.storage().begin());
 
             if ((head.slave_id != slave_id_) && (head.slave_id != broadcast_address)) [[likely]] {
-                TRACE(MODULE(modbus)) << "check -> idle";
+                TRACE() << "check -> idle";
                 state_ = slave_state::idle;
                 input_msg_.size(0);
-                TRACE(MODULE(modbus)) << "bad_slave";
+                TRACE() << "bad_slave";
                 return exception::bad_slave;
             }
 
@@ -144,22 +144,22 @@ public:
 
             if ((head.function_code >= max_function_id) || (defined_functions_table_[head.function_code] == nullptr))
                 [[unlikely]] {
-                TRACE(MODULE(modbus)) << "check -> err_reply";
+                TRACE() << "check -> err_reply";
                 state_ = slave_state::formatting_error_reply;
                 input_msg_.size(0);
                 increment_counter(diagnostics_sub_function::return_server_exception_error_count);
-                WARN(MODULE(modbus)) << "illegal_function";
+                WARN() << "illegal_function";
                 return error_ = exception::illegal_function;
             }
             state_ = slave_state::processing_action;
             break;
         case slave_state::processing_action:
             if (exception::no_error == (error_ = defined_functions_table_[head.function_code](*this))) [[likely]] {
-                TRACE(MODULE(modbus)) << "proc -> reply";
+                TRACE() << "proc -> reply";
                 state_ = slave_state::formatting_reply;
             } else [[unlikely]] {
                 increment_counter(diagnostics_sub_function::return_server_exception_error_count);
-                TRACE(MODULE(modbus)) << "proc -> err_reply";
+                TRACE() << "proc -> err_reply";
                 state_ = slave_state::formatting_error_reply;
             }
             if (head.slave_id == broadcast_address) [[unlikely]] {
@@ -173,7 +173,7 @@ public:
                 send(output_msg_.storage().begin(), output_msg_.storage().begin() + output_msg_.size());
             }
             output_msg_.size(0);
-            TRACE(MODULE(modbus)) << "reply -> idle";
+            TRACE() << "reply -> idle";
             state_ = slave_state::idle;
             break;
         case slave_state::formatting_error_reply:
@@ -182,20 +182,20 @@ public:
             if (!silent_) {
                 if (!send(output_msg_.storage().begin(), output_msg_.storage().begin() + output_msg_.size()))
                     [[unlikely]] {
-                    TRACE(MODULE(modbus)) << "err_reply -> un_err";
+                    TRACE() << "err_reply -> un_err";
                     state_ = slave_state::unrecoverable_error;
-                    ERROR(MODULE(modbus)) << "unknown_exception";
+                    ERROR() << "unknown_exception";
                     return error_ = exception::unknown_exception;
                 }
             }
             output_msg_.size(0);
             input_msg_.size(0);
             error_ = exception::no_error;
-            TRACE(MODULE(modbus)) << "err_reply -> idle";
+            TRACE() << "err_reply -> idle";
             state_ = slave_state::idle;
             break;
         default:
-            WARN(MODULE(modbus)) << "state undef: " << static_cast<std::uint8_t>(state_);
+            WARN() << "state undef: " << static_cast<std::uint8_t>(state_);
         case slave_state::idle:
             break;
         }
@@ -259,7 +259,7 @@ public:
     inline void
     reset() noexcept override
     {
-        TRACE(MODULE(modbus)) << "-> idle";
+        TRACE() << "-> idle";
         state_ = slave_state::idle;
         error_ = exception::no_error;
     }
@@ -344,8 +344,8 @@ public:
     using error_type    = packet<header, error_fields, crc16ansi>;
     using function_type = exception (*)(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>&);
     using function_table_type = std::array<function_type, slave_type::max_function_id + 1>;
-    using fifo_type           = utils::circular_buffer<msb_t<std::uint16_t>, Fifo>;
-    using log_type            = utils::circular_buffer<std::uint8_t, slave_type::log_size>;
+    using fifo_type           = containers::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
+    using log_type            = containers::circular_buffer<std::uint8_t, slave_type::log_size>;
 
     constexpr explicit modbus_slave_ext(std::uint8_t slave_id, typename slave_type::inputs_type const& inputs,
                                         typename slave_type::coils_type&            coils,

@@ -16,7 +16,8 @@ read_exception_status(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldi
         return exception::bad_data;
     }
     auto pack
-        = slave.input().template deserialize_no_check<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>();
+        = slave.input()
+              .template deserialize_no_check<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>();
     //=========Request processing===================================================================
     return_type data{{slave.id(), pack.header->function_code}, slave.exception_status(), 0, nullptr};
     slave.output().template serialize<header, std::uint8_t, std::uint8_t, crc16ansi>(data);
@@ -34,7 +35,8 @@ read_coils(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters
         return exception::bad_data;
     }
     auto pack
-        = slave.input().template deserialize_no_check<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>();
+        = slave.input()
+              .template deserialize_no_check<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>();
     if ((pack.fields->quantity.get() < 1) || (pack.fields->quantity.get() > slave_type::max_read_bits)) {
         return exception::illegal_data_value;
     }
@@ -82,7 +84,8 @@ read_inputs(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegister
         return exception::bad_data;
     }
     auto pack
-        = slave.input().template deserialize_no_check<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>();
+        = slave.input()
+              .template deserialize_no_check<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>();
     if ((pack.fields->quantity.get() < 1) || (pack.fields->quantity.get() > slave_type::max_read_bits)) {
         return exception::illegal_data_value;
     }
@@ -122,14 +125,16 @@ template <typename TInputs, typename TCoils, typename TInputRegisters, typename 
 exception
 read_holding(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>& slave)
 {
-    using slave_type  = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
-    using return_type = typename slave_type::msg_type::template fields_in<header, std::uint8_t, msb_t<std::uint16_t>>;
+    using slave_type = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
+    using return_type =
+        typename slave_type::msg_type::template fields_in<header, std::uint8_t, func::msb_t<std::uint16_t>>;
     //=========Check parameters=====================================================================
     if (slave_type::request_type_read::length != slave.input().size()) {
         return exception::bad_data;
     }
     auto pack
-        = slave.input().template deserialize_no_check<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>();
+        = slave.input()
+              .template deserialize_no_check<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>();
     if ((pack.fields->quantity.get() < 1) || (pack.fields->quantity.get() > slave_type::max_read_registers)) {
         return exception::illegal_data_value;
     }
@@ -141,7 +146,7 @@ read_holding(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegiste
     if (pack.fields->quantity.get() == 0) {
         packet<header, std::uint8_t, crc16ansi> ret_pack{{slave.id(), pack.header->function_code}, {0}};
     } else {
-        static std::array<msb_t<std::uint16_t>, slave_type::max_read_registers> holding_collect;
+        static std::array<func::msb_t<std::uint16_t>, slave_type::max_read_registers> holding_collect;
         std::uint16_t const holding_collect_num{static_cast<std::uint16_t>(pack.fields->quantity.get())};
         std::uint16_t const holding_collect_start{pack.fields->starting_address.get()};
         for (std::uint16_t i = 0;
@@ -155,7 +160,7 @@ read_holding(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegiste
                          holding_collect_num,
                          holding_collect.begin()};
 
-        slave.output().template serialize<header, std::uint8_t, msb_t<std::uint16_t>, crc16ansi>(data);
+        slave.output().template serialize<header, std::uint8_t, func::msb_t<std::uint16_t>, crc16ansi>(data);
     }
     return exception::no_error;
 }
@@ -164,14 +169,16 @@ template <typename TInputs, typename TCoils, typename TInputRegisters, typename 
 exception
 read_input_regs(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>& slave)
 {
-    using slave_type  = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
-    using return_type = typename slave_type::msg_type::template fields_in<header, std::uint8_t, msb_t<std::uint16_t>>;
+    using slave_type = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
+    using return_type =
+        typename slave_type::msg_type::template fields_in<header, std::uint8_t, func::msb_t<std::uint16_t>>;
     //=========Check parameters=====================================================================
     if (slave_type::request_type_read::length != slave.input().size()) {
         return exception::bad_data;
     }
     auto pack
-        = slave.input().template deserialize_no_check<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>();
+        = slave.input()
+              .template deserialize_no_check<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>();
     if ((pack.fields->quantity.get() < 1) || (pack.fields->quantity.get() > slave_type::max_read_registers)) {
         return exception::illegal_data_value;
     }
@@ -183,7 +190,7 @@ read_input_regs(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegi
     if (pack.fields->quantity.get() == 0) {
         packet<header, std::uint8_t, crc16ansi> ret_pack{{slave.id(), pack.header->function_code}, {0}};
     } else {
-        static std::array<msb_t<std::uint16_t>, slave_type::max_read_registers> inputs_collect;
+        static std::array<func::msb_t<std::uint16_t>, slave_type::max_read_registers> inputs_collect;
         std::uint16_t const inputs_collect_num{static_cast<std::uint16_t>(pack.fields->quantity.get())};
         std::uint16_t const inputs_collect_start{pack.fields->starting_address.get()};
         for (std::uint16_t i = 0;
@@ -196,7 +203,7 @@ read_input_regs(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegi
                          static_cast<std::uint8_t>(inputs_collect_num * 2),
                          inputs_collect_num,
                          inputs_collect.begin()};
-        slave.output().template serialize<header, std::uint8_t, msb_t<std::uint16_t>, crc16ansi>(data);
+        slave.output().template serialize<header, std::uint8_t, func::msb_t<std::uint16_t>, crc16ansi>(data);
     }
     return exception::no_error;
 }

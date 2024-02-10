@@ -11,8 +11,8 @@ template <typename T>
 concept adv_command_concept = requires { typename T::output_command; };
 
 template <typename T, size_t Size, typename AdvCommands>
-utils::circular_buffer<T, Size>&
-operator<<(utils::circular_buffer<T, Size>& buffer, AdvCommands const& in_data)
+containers::circular_buffer<T, Size>&
+operator<<(containers::circular_buffer<T, Size>& buffer, AdvCommands const& in_data)
 {
     for (auto& i : AdvCommands::output_command) {
         buffer.push(*i);
@@ -97,7 +97,7 @@ public:
     receive(msg_type const& message) noexcept override
     {
         static std::array<std::uint16_t, modbus_base::max_read_registers> values{};
-        auto [pack, err] = input_msg<header, std::uint8_t, msb_t<std::uint16_t>>(slave(), message);
+        auto [pack, err] = input_msg<header, std::uint8_t, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]] {
             Callback(err, nullptr, nullptr);
             return err;
@@ -120,14 +120,14 @@ template <std::uint8_t Slave, std::uint16_t Address, std::size_t Size, std::arra
           std::invocable<exception> auto Callback>
 class write_registers_static : public modbus_command {
     using struct_type = struct __attribute__((__packed__)) tag_ {
-        request_fields_wr_multi                fields;
-        std::array<msb_t<std::uint16_t>, Size> data;
+        request_fields_wr_multi                      fields;
+        std::array<func::msb_t<std::uint16_t>, Size> data;
     };
 
-    static consteval std::array<msb_t<std::uint16_t>, Size>
+    static consteval std::array<func::msb_t<std::uint16_t>, Size>
     swap(std::array<std::uint16_t, Size> const& val) noexcept
     {
-        std::array<msb_t<std::uint16_t>, Size> data_r;
+        std::array<func::msb_t<std::uint16_t>, Size> data_r;
         for (decltype(Size) i = 0; i < Size; i++) {
             data_r[i] = val[i];
         }

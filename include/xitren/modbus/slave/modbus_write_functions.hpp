@@ -12,8 +12,9 @@ write_registers(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegi
     using slave_type  = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
     using return_type = typename slave_type::msg_type::template fields_in<header, request_fields_read, std::uint16_t>;
     //=========Check parameters=====================================================================
-    auto pack = slave.input()
-                    .template deserialize_no_check<header, request_fields_wr_multi, msb_t<std::uint16_t>, crc16ansi>();
+    auto pack
+        = slave.input()
+              .template deserialize_no_check<header, request_fields_wr_multi, func::msb_t<std::uint16_t>, crc16ansi>();
     if (!slave_type::address_valid(pack.fields->starting_address.get(), pack.fields->quantity.get(),
                                    slave.holding_registers().size())) {
         return exception::illegal_data_address;

@@ -9,7 +9,7 @@
 
 namespace xitren::modbus {
 
-template <typename Header, typename Fields, crc_concept Crc>
+template <typename Header, typename Fields, crc::crc_concept Crc>
 union packet {
     using size_type                   = std::size_t;
     static constexpr size_type length = (sizeof(Header) + sizeof(Fields) + sizeof(typename Crc::value_type));
@@ -93,16 +93,16 @@ public:
     static consteval array_type
     serialize(Header const& header, Fields const& fields) noexcept
     {
-        auto data_tr = data<struct_nocrc_type>::serialize({header, fields});
+        auto data_tr = func::data<struct_nocrc_type>::serialize({header, fields});
         auto crc     = Crc::calculate(data_tr.begin(), data_tr.end());
-        return data<struct_type>::serialize({header, fields, crc});
+        return func::data<struct_type>::serialize({header, fields, crc});
     }
 
     template <std::size_t Size>
     static consteval std::tuple<bool, Header, Fields>
     deserialize(std::array<std::uint8_t, Size> const& array) noexcept
     {
-        auto [header, fields, crc] = data<struct_type>::serialize(array);
+        auto [header, fields, crc] = func::data<struct_type>::serialize(array);
         std::array<std::uint8_t, Size - sizeof(Crc::value_type)> checker;
         auto                                                     calc_crc = Crc::calculate(checker);
         return {crc == calc_crc, header, fields};
@@ -112,7 +112,7 @@ public:
     static constexpr packet
     deserialize(InputIterator begin) noexcept
     {
-        data<packet> tt{};
+        func::data<packet> tt{};
         std::copy(begin, begin + length, tt.pure.begin());
         return tt.fields;
     }
@@ -121,7 +121,7 @@ public:
     static constexpr void
     serialize(packet const& type, InputIterator begin) noexcept
     {
-        data<packet> tt{type};
+        func::data<packet> tt{type};
         std::copy(tt.pure.begin(), tt.pure.end(), begin);
     }
 
@@ -162,7 +162,7 @@ public:
         Type const* data;
     };
 
-    template <typename Header, typename Fields, typename Type, crc_concept Crc>
+    template <typename Header, typename Fields, typename Type, crc::crc_concept Crc>
     auto
     deserialize_no_check() const noexcept
     {
@@ -177,7 +177,7 @@ public:
         return return_type{header_conv, fields_conv, variable_part, data_conv};
     }
 
-    template <typename Header, typename Fields, typename Type, crc_concept Crc>
+    template <typename Header, typename Fields, typename Type, crc::crc_concept Crc>
     constexpr auto
     deserialize() const
     {
@@ -189,17 +189,17 @@ public:
         if (((size_ - length) % sizeof(Type))) {
             return return_type{{}, {}, false, 0, nullptr};
         }
-        auto header_conv = data<Header>::deserialize(storage_.begin());
-        auto fields_conv = data<Fields>::deserialize(storage_.begin() + sizeof(Header));
-        auto crc_conv
-            = data<typename Crc::value_type>::deserialize(storage_.begin() + size_ - sizeof(typename Crc::value_type));
+        auto                     header_conv = func::data<Header>::deserialize(storage_.begin());
+        auto                     fields_conv = func::data<Fields>::deserialize(storage_.begin() + sizeof(Header));
+        auto                     crc_conv = func::data<typename Crc::value_type>::deserialize(storage_.begin() + size_
+                                                                                              - sizeof(typename Crc::value_type));
         typename Crc::value_type crc_calc
             = Crc::calculate(storage_.begin(), storage_.begin() + size_ - sizeof(typename Crc::value_type));
         return return_type{header_conv, fields_conv, crc_conv.get() == crc_calc.get(), variable_part,
                            reinterpret_cast<Type const*>(storage_.begin() + sizeof(Header) + sizeof(Fields))};
     }
 
-    template <typename Header, typename Fields, typename Type, crc_concept Crc>
+    template <typename Header, typename Fields, typename Type, crc::crc_concept Crc>
     constexpr bool
     serialize(fields_in<Header, Fields, Type> const& input)
     {
@@ -209,8 +209,8 @@ public:
         if ((input.size * sizeof(Type) + length) > Max) {
             return false;
         }
-        data<Header>::serialize(input.header, storage_.begin());
-        data<Fields>::serialize(input.fields, storage_.begin() + sizeof(Header));
+        func::data<Header>::serialize(input.header, storage_.begin());
+        func::data<Fields>::serialize(input.fields, storage_.begin() + sizeof(Header));
         if ((input.size > 0) && (input.data != nullptr)) {
             std::copy(reinterpret_cast<uint8_t const*>(input.data),
                       reinterpret_cast<uint8_t const*>(input.data + input.size),
@@ -218,7 +218,7 @@ public:
         }
         auto const crc_ptr = storage_.begin() + sizeof(Header) + sizeof(Fields) + input.size * sizeof(Type);
         typename Crc::value_type const crc{Crc::calculate(storage_.begin(), crc_ptr)};
-        data<typename Crc::value_type>::serialize(crc, crc_ptr);
+        func::data<typename Crc::value_type>::serialize(crc, crc_ptr);
         size_ = length + input.size * sizeof(Type);
         return true;
     }

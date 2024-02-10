@@ -9,12 +9,13 @@ template <typename TInputs, typename TCoils, typename TInputRegisters, typename 
 exception
 diagnostics(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>& slave)
 {
-    using slave_type = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
-    using return_type =
-        typename slave_type::msg_type::template fields_in<header, msb_t<std::uint16_t>, msb_t<std::uint16_t>>;
+    using slave_type  = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
+    using return_type = typename slave_type::msg_type::template fields_in<header, func::msb_t<std::uint16_t>,
+                                                                          func::msb_t<std::uint16_t>>;
     //=========Check parameters=====================================================================
-    auto pack
-        = slave.input().template deserialize_no_check<header, msb_t<std::uint16_t>, msb_t<std::uint16_t>, crc16ansi>();
+    auto pack = slave.input()
+                    .template deserialize_no_check<header, func::msb_t<std::uint16_t>, func::msb_t<std::uint16_t>,
+                                                   crc16ansi>();
     //=========Request processing===================================================================
     switch (pack.fields->get()) {
     case static_cast<std::uint16_t>(diagnostics_sub_function::return_query_data):
@@ -29,9 +30,10 @@ diagnostics(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegister
         slave.restart_comm();
         break;
     case static_cast<std::uint16_t>(diagnostics_sub_function::return_diagnostic_register): {
-        msb_t<std::uint16_t> val{slave.diagnostic_register()};
-        return_type          data{{slave.id(), pack.header->function_code}, *(pack.fields), 1, &val};
-        slave.output().template serialize<header, msb_t<std::uint16_t>, msb_t<std::uint16_t>, crc16ansi>(data);
+        func::msb_t<std::uint16_t> val{slave.diagnostic_register()};
+        return_type                data{{slave.id(), pack.header->function_code}, *(pack.fields), 1, &val};
+        slave.output().template serialize<header, func::msb_t<std::uint16_t>, func::msb_t<std::uint16_t>, crc16ansi>(
+            data);
     } break;
     case static_cast<std::uint16_t>(diagnostics_sub_function::force_listen_only_mode):
         slave.silent(true);
@@ -47,9 +49,10 @@ diagnostics(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegister
     case static_cast<std::uint16_t>(diagnostics_sub_function::return_server_nak_count):
     case static_cast<std::uint16_t>(diagnostics_sub_function::return_server_busy_count):
     case static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_char_overrun_count): {
-        msb_t<std::uint16_t> val{slave.get_counter(pack.fields->get())};
-        return_type          data{{slave.id(), pack.header->function_code}, *(pack.fields), 1, &val};
-        slave.output().template serialize<header, msb_t<std::uint16_t>, msb_t<std::uint16_t>, crc16ansi>(data);
+        func::msb_t<std::uint16_t> val{slave.get_counter(pack.fields->get())};
+        return_type                data{{slave.id(), pack.header->function_code}, *(pack.fields), 1, &val};
+        slave.output().template serialize<header, func::msb_t<std::uint16_t>, func::msb_t<std::uint16_t>, crc16ansi>(
+            data);
     } break;
     default:
         return exception::illegal_function;

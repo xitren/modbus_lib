@@ -17,7 +17,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
-        if (!msg_output_.template serialize<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>(
+        if (!msg_output_.template serialize<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>(
                 {{slave, static_cast<uint8_t>(function::read_holding_registers)}, {address, size_}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
@@ -90,7 +90,7 @@ public:
     receive(msg_type const& message) noexcept override
     {
         static std::array<std::uint16_t, modbus_base::max_read_registers> values{};
-        auto [pack, err] = input_msg<header, std::uint8_t, msb_t<std::uint16_t>>(slave(), message);
+        auto [pack, err] = input_msg<header, std::uint8_t, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
         if (pack.size > modbus_base::max_read_registers) [[unlikely]]
@@ -224,7 +224,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
-        if (!msg_output_.template serialize<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>(
+        if (!msg_output_.template serialize<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>(
                 {{slave, static_cast<uint8_t>(function::read_input_registers)}, {address, size_}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
@@ -297,7 +297,7 @@ public:
     receive(msg_type const& message) noexcept override
     {
         static std::array<std::uint16_t, modbus_base::max_read_registers> values{};
-        auto [pack, err] = input_msg<header, std::uint8_t, msb_t<std::uint16_t>>(slave(), message);
+        auto [pack, err] = input_msg<header, std::uint8_t, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
         if (pack.size > modbus_base::max_read_registers) [[unlikely]]
@@ -337,12 +337,12 @@ public:
     value(std::array<std::uint16_t, Size> const& vals) noexcept
     {
         static_assert(Size < modbus_base::max_write_registers, "Too much to write!");
-        static std::array<msb_t<std::uint16_t>, Size> data_formatted;
+        static std::array<func::msb_t<std::uint16_t>, Size> data_formatted;
         for (auto it1{vals.begin()}, it2{data_formatted.begin()}; (it1 != vals.end()) && (it2 != data_formatted.end());
              it1++, it2++) {
             (*it2) = (*it1);
         }
-        if (!msg_output_.template serialize<header, request_fields_wr_single, msb_t<std::uint16_t>, crc16ansi>(
+        if (!msg_output_.template serialize<header, request_fields_wr_single, func::msb_t<std::uint16_t>, crc16ansi>(
                 {{slave_, static_cast<std::uint8_t>(function::write_multiple_registers)},
                  {address_, static_cast<std::uint16_t>(vals.size()), static_cast<std::uint8_t>(Size * 2)},
                  Size,

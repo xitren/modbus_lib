@@ -28,7 +28,7 @@ public:
     run_async(modbus_command const& in_data)
     {
         if (command_ != nullptr) {
-            WARN(MODULE(modbus)) << "busy";
+            WARN() << "busy";
             return false;
         }
 
@@ -55,7 +55,7 @@ public:
     }
 
     virtual bool
-    timer_start()
+    timer_start(std::size_t microseconds)
         = 0;
 
     virtual bool
@@ -71,7 +71,7 @@ public:
     {
         switch (state_) {
         case master_state::waiting_reply:
-            TRACE(MODULE(modbus)) << "wait -> proc_err";
+            TRACE() << "wait -> proc_err";
             state_ = master_state::processing_error;
             if (command_ != nullptr) {
                 command_->no_answer();
@@ -91,12 +91,12 @@ public:
             if (command_ != nullptr) {
                 return received_command();
             }
-            TRACE(MODULE(modbus)) << "wait -> un_err";
+            TRACE() << "wait -> un_err";
             state_ = master_state::unrecoverable_error;
             return exception::unknown_exception;
             break;
         default:
-            WARN(MODULE(modbus)) << "state undef: " << static_cast<int>(state_);
+            WARN() << "state undef: " << static_cast<int>(state_);
             break;
         }
         return exception::no_error;
@@ -114,14 +114,14 @@ public:
         switch (state_) {
         case master_state::processing_reply:
         case master_state::processing_error:
-            TRACE(MODULE(modbus)) << "proc -> idle";
+            TRACE() << "proc -> idle";
             state_ = master_state::idle;
             break;
         case master_state::waiting_reply:
         case master_state::idle:
             break;
         default:
-            WARN(MODULE(modbus)) << "state undef: " << static_cast<int>(state_);
+            WARN() << "state undef: " << static_cast<int>(state_);
             break;
         }
         return exception::no_error;
@@ -144,12 +144,12 @@ public:
     {
         state_ = master_state::waiting_reply;
         if (!send(msg.storage().begin(), msg.storage().begin() + msg.size())) {
-            TRACE(MODULE(modbus)) << "wait -> un_err";
+            TRACE() << "wait -> un_err";
             state_ = master_state::unrecoverable_error;
             return false;
         }
-        if (!timer_start()) {
-            TRACE(MODULE(modbus)) << "wait -> un_err";
+        if (!timer_start(100)) {
+            TRACE() << "wait -> un_err";
             state_ = master_state::unrecoverable_error;
             return false;
         }
@@ -159,7 +159,7 @@ public:
     inline void
     reset() noexcept override
     {
-        TRACE(MODULE(modbus)) << "-> idle";
+        TRACE() << "-> idle";
         state_   = master_state::idle;
         error_   = exception::no_error;
         command_ = nullptr;
@@ -231,8 +231,9 @@ private:
     request(modbus_master& master, std::uint8_t slave, diagnostics_sub_function sub, std::uint16_t& data)
     {
         master.ask_ = {slave, function::diagnostic};
-        master.output_msg_.template serialize<header, msb_t<std::uint16_t>, msb_t<std::uint16_t>, crc16ansi>(
-            {{slave, static_cast<uint8_t>(function::diagnostic)}, static_cast<uint16_t>(sub), 0, nullptr});
+        master.output_msg_
+            .template serialize<header, func::msb_t<std::uint16_t>, func::msb_t<std::uint16_t>, crc16ansi>(
+                {{slave, static_cast<uint8_t>(function::diagnostic)}, static_cast<uint16_t>(sub), 0, nullptr});
 
         if (!master.push(master.output_msg_)) {
             return exception::slave_or_server_failure;
@@ -240,7 +241,7 @@ private:
         if (!master.wait_input_msg()) [[unlikely]] {
             return exception::bad_slave;
         }
-        auto [pack, err] = master.input_msg<header, msb_t<std::uint16_t>, msb_t<std::uint16_t>>(slave);
+        auto [pack, err] = master.input_msg<header, func::msb_t<std::uint16_t>, func::msb_t<std::uint16_t>>(slave);
         if ((master.error_ = err) != exception::no_error) [[unlikely]]
             return err;
         if (pack.size != 1) [[unlikely]]

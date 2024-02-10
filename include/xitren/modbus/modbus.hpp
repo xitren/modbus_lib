@@ -1,5 +1,5 @@
 #pragma once
-#include <loveka/components/utils/log.hpp>
+#include <xitren/modbus/log/embedded.hpp>
 #include <xitren/modbus/packet.hpp>
 
 #include <limits>
@@ -137,36 +137,36 @@ struct __attribute__((__packed__)) header {
 };
 
 struct __attribute__((__packed__)) request_fields_read {
-    msb_t<std::uint16_t> starting_address{};
-    msb_t<std::uint16_t> quantity{};
+    func::msb_t<std::uint16_t> starting_address{};
+    func::msb_t<std::uint16_t> quantity{};
 };
 
 struct __attribute__((__packed__)) request_fields_wr_single {
-    msb_t<std::uint16_t> starting_address{};
-    msb_t<std::uint16_t> quantity{};
-    std::uint8_t         count{};
+    func::msb_t<std::uint16_t> starting_address{};
+    func::msb_t<std::uint16_t> quantity{};
+    std::uint8_t               count{};
 };
 
 struct __attribute__((__packed__)) request_fields_wr_multi {
-    msb_t<std::uint16_t> starting_address{};
-    msb_t<std::uint16_t> quantity{};
-    std::uint8_t         count{};
+    func::msb_t<std::uint16_t> starting_address{};
+    func::msb_t<std::uint16_t> quantity{};
+    std::uint8_t               count{};
 };
 
 struct __attribute__((__packed__)) request_fields_wr_mask {
-    msb_t<std::uint16_t> starting_address{};
-    msb_t<std::uint16_t> and_mask{};
-    msb_t<std::uint16_t> or_mask{};
+    func::msb_t<std::uint16_t> starting_address{};
+    func::msb_t<std::uint16_t> and_mask{};
+    func::msb_t<std::uint16_t> or_mask{};
 };
 
 struct __attribute__((__packed__)) request_fields_fifo {
-    msb_t<std::uint16_t> quantity{};
-    msb_t<std::uint16_t> count{};
+    func::msb_t<std::uint16_t> quantity{};
+    func::msb_t<std::uint16_t> count{};
 };
 
 struct __attribute__((__packed__)) request_fields_log {
-    msb_t<std::uint16_t> address{};
-    msb_t<std::uint16_t> quantity{};
+    func::msb_t<std::uint16_t> address{};
+    func::msb_t<std::uint16_t> quantity{};
 };
 
 struct __attribute__((__packed__)) request_identification {
@@ -216,7 +216,7 @@ public:
     using request_type_wr_single = packet<header, request_fields_wr_single, crc16ansi>;
     using request_type_wr_mask   = packet<header, request_fields_wr_mask, crc16ansi>;
     using request_type_err       = packet<header, null_field, crc16ansi>;
-    using request_type_fifo      = packet<header, msb_t<std::uint16_t>, crc16ansi>;
+    using request_type_fifo      = packet<header, func::msb_t<std::uint16_t>, crc16ansi>;
     using request_type_log       = packet<header, request_fields_log, crc16ansi>;
     using request_type_log_level = packet<header, null_field, crc16ansi>;
     using msg_type               = packet_accessor<max_adu_length>;
@@ -311,30 +311,30 @@ public:
         if (!idle()) [[unlikely]] {
             increment_counter(diagnostics_sub_function::return_bus_char_overrun_count);
             increment_counter(diagnostics_sub_function::return_server_busy_count);
-            ERROR(MODULE(modbus)) << "busy";
+            ERROR() << "busy";
             return exception::slave_or_server_busy;
         }
         if ((end - begin) < min_adu_length) [[unlikely]] {
             increment_counter(diagnostics_sub_function::return_bus_comm_error_count);
-            ERROR(MODULE(modbus)) << "ADU < 3";
+            ERROR() << "ADU < 3";
             return exception::bad_data;
         }
         if (static_cast<std::size_t>(end - begin) > max_adu_length) [[unlikely]] {
             increment_counter(diagnostics_sub_function::return_bus_comm_error_count);
-            ERROR(MODULE(modbus)) << "ADU > MAX";
+            ERROR() << "ADU > MAX";
             return exception::bad_data;
         }
         auto const crc_ptr        = end - sizeof(crc16ansi::value_type);
-        auto       crc            = data<crc16ansi::value_type>::deserialize(crc_ptr);
+        auto       crc            = func::data<crc16ansi::value_type>::deserialize(crc_ptr);
         auto       crc_calculated = crc16ansi::calculate(begin, crc_ptr);
         if (crc.get() != crc_calculated.get()) {
             increment_counter(diagnostics_sub_function::return_bus_comm_error_count);
-            WARN(MODULE(modbus)) << "bad_crc";
+            WARN() << "bad_crc";
             return exception::bad_crc;
         }
         std::copy(begin, end, input_msg_.storage().begin());
         input_msg_.size(end - begin);
-        TRACE(MODULE(modbus)) << "recv msg";
+        TRACE() << "recv msg";
         return received();
     }
 
