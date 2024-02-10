@@ -1,13 +1,14 @@
 #pragma once
-#include "loveka/components/modbus/modbus.hpp"
-#include "modbus_diagnostics_functions.hpp"
-#include "modbus_fifo_functions.hpp"
-#include "modbus_read_functions.hpp"
-#include "modbus_write_functions.hpp"
+
+#include <xitren/modbus/modbus.hpp>
+#include <xitren/modbus/slave/modbus_diagnostics_functions.hpp>
+#include <xitren/modbus/slave/modbus_fifo_functions.hpp>
+#include <xitren/modbus/slave/modbus_read_functions.hpp>
+#include <xitren/modbus/slave/modbus_write_functions.hpp>
 
 #include <limits>
 
-namespace loveka::components::modbus {
+namespace xitren::modbus {
 
 template <std::uint8_t Id, std::uint16_t Inputs, std::uint16_t Coils, std::uint16_t InputRegisters,
           std::uint16_t HoldingRegisters, std::uint16_t Fifo>
@@ -26,12 +27,11 @@ protected:
     static_assert(Fifo > 0, "FIFO length must be more than 0!");
 
 public:
-    using slave_type = modbus_slave<Id, Inputs, Coils, InputRegisters, HoldingRegisters, Fifo>;
-    using error_type = packet<header, error_fields, crc16ansi>;
-    using function_type
-        = exception (*)(modbus_slave<Id, Inputs, Coils, InputRegisters, HoldingRegisters, Fifo>&);
+    using slave_type          = modbus_slave<Id, Inputs, Coils, InputRegisters, HoldingRegisters, Fifo>;
+    using error_type          = packet<header, error_fields, crc16ansi>;
+    using function_type       = exception (*)(modbus_slave<Id, Inputs, Coils, InputRegisters, HoldingRegisters, Fifo>&);
     using function_table_type = std::array<function_type, max_function_id + 1>;
-    using fifo_type           = utils::circular_buffer<msb_t<std::uint16_t>, Fifo>;
+    using fifo_type           = containers::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
 
     constexpr explicit modbus_slave(std::uint8_t unique_id)
         : slave_id_{static_cast<std::uint8_t>((unique_id & 0xf0) | (Id & 0x0f))}
@@ -51,13 +51,13 @@ public:
     }
 
     void
-    register_function(const function id, const function_type func) noexcept
+    register_function(function const id, function_type const func) noexcept
     {
         defined_functions_table_[static_cast<std::uint8_t>(id)] = func;
     }
 
     void
-    unregister_function(const function id) noexcept
+    unregister_function(function const id) noexcept
     {
         defined_functions_table_[static_cast<std::uint8_t>(id)] = nullptr;
     }
@@ -90,7 +90,7 @@ public:
     exception
     processing() noexcept override
     {
-        const auto head = data<header>::deserialize(input_msg_.storage().begin());
+        auto const head = func::data<header>::deserialize(input_msg_.storage().begin());
         switch (state_) {
         case slave_state::checking_request:
             if (input_msg_.size() == 0) [[unlikely]] {
@@ -124,8 +124,7 @@ public:
             state_ = slave_state::processing_action;
             break;
         case slave_state::processing_action:
-            if (exception::no_error
-                == (error_ = defined_functions_table_[head.function_code](*this))) [[likely]] {
+            if (exception::no_error == (error_ = defined_functions_table_[head.function_code](*this))) [[likely]] {
                 state_ = slave_state::formatting_reply;
             } else [[unlikely]] {
                 increment_counter(diagnostics_sub_function::return_server_exception_error_count);
@@ -139,21 +138,17 @@ public:
             break;
         case slave_state::formatting_reply:
             if (!silent_) {
-                send(output_msg_.storage().begin(),
-                     output_msg_.storage().begin() + output_msg_.size());
+                send(output_msg_.storage().begin(), output_msg_.storage().begin() + output_msg_.size());
             }
             output_msg_.size(0);
             state_ = slave_state::idle;
             break;
         case slave_state::formatting_error_reply:
             output_msg_.template serialize<header, error_fields, uint8_t, crc16ansi>(
-                {{slave_id_, static_cast<uint8_t>(head.function_code | error_reply_mask)},
-                 {error_},
-                 0,
-                 nullptr});
+                {{slave_id_, static_cast<uint8_t>(head.function_code | error_reply_mask)}, {error_}, 0, nullptr});
             if (!silent_) {
-                if (!send(output_msg_.storage().begin(),
-                          output_msg_.storage().begin() + output_msg_.size())) [[unlikely]] {
+                if (!send(output_msg_.storage().begin(), output_msg_.storage().begin() + output_msg_.size()))
+                    [[unlikely]] {
                     state_        = slave_state::unrecoverable_error;
                     return error_ = exception::unknown_exception;
                 }
@@ -285,13 +280,12 @@ public:
     }
 
     static bool
-    crc_valid(const msg_type& inputs)
+    crc_valid(msg_type const& inputs)
     {
-        auto crc_conv = data<typename crc16ansi::value_type>::deserialize(
-            inputs.storage().data() + inputs.size() - sizeof(typename crc16ansi::value_type));
+        auto crc_conv = func::data<typename crc16ansi::value_type>::deserialize(inputs.storage().data() + inputs.size()
+                                                                          - sizeof(typename crc16ansi::value_type));
         typename crc16ansi::value_type crc_calc = crc16ansi::calculate(
-            inputs.storage().data(),
-            inputs.storage().data() + inputs.size() - sizeof(typename crc16ansi::value_type));
+            inputs.storage().data(), inputs.storage().data() + inputs.size() - sizeof(typename crc16ansi::value_type));
         if (crc_conv.get() == crc_calc.get()) {
             return false;
         }
@@ -309,16 +303,16 @@ public:
 
     template <std::ranges::common_range Array>
     modbus_slave&
-    operator<<(const Array& in_data)
+    operator<<(Array const& in_data)
     {
-        for (const std::uint16_t& item : in_data) {
+        for (std::uint16_t const& item : in_data) {
             fifo_.push(item);
         }
         return *this;
     }
 
 private:
-    const std::uint8_t  slave_id_;
+    std::uint8_t const  slave_id_;
     bool                silent_{};
     slave_state         state_ = slave_state::idle;
     inputs_type         inputs_{};
@@ -329,4 +323,4 @@ private:
     fifo_type           fifo_{};
 };
 
-}    // namespace xitren::components::modbus
+}    // namespace xitren::modbus

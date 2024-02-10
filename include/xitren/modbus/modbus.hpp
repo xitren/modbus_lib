@@ -1,10 +1,11 @@
 #pragma once
-#include <loveka/components/modbus/packet.hpp>
+
+#include <xitren/modbus/packet.hpp>
 
 #include <limits>
 #include <type_traits>
 
-namespace loveka::components::modbus {
+namespace xitren::modbus {
 
 // MODBUS Application Protocol Specification V1.1b3
 // http://www.modbus.orgv
@@ -103,25 +104,25 @@ struct __attribute__((__packed__)) header {
 };
 
 struct __attribute__((__packed__)) request_fields_read {
-    msb_t<std::uint16_t> starting_address{};
-    msb_t<std::uint16_t> quantity{};
+    func::msb_t<std::uint16_t> starting_address{};
+    func::msb_t<std::uint16_t> quantity{};
 };
 
 struct __attribute__((__packed__)) request_fields_wr_single {
-    msb_t<std::uint16_t> starting_address{};
-    msb_t<std::uint16_t> quantity{};
-    std::uint8_t         count{};
+    func::msb_t<std::uint16_t> starting_address{};
+    func::msb_t<std::uint16_t> quantity{};
+    std::uint8_t               count{};
 };
 
 struct __attribute__((__packed__)) request_fields_wr_mask {
-    msb_t<std::uint16_t> starting_address{};
-    msb_t<std::uint16_t> and_mask{};
-    msb_t<std::uint16_t> or_mask{};
+    func::msb_t<std::uint16_t> starting_address{};
+    func::msb_t<std::uint16_t> and_mask{};
+    func::msb_t<std::uint16_t> or_mask{};
 };
 
 struct __attribute__((__packed__)) request_fields_fifo {
-    msb_t<std::uint16_t> quantity{};
-    msb_t<std::uint16_t> count{};
+    func::msb_t<std::uint16_t> quantity{};
+    func::msb_t<std::uint16_t> count{};
 };
 
 struct __attribute__((__packed__)) error_fields {
@@ -130,26 +131,26 @@ struct __attribute__((__packed__)) error_fields {
 
 class modbus_base {
 public:
-    constexpr static std::uint8_t  broadcast_address      = 0;
-    constexpr static std::uint16_t max_read_bits          = 2000;
-    constexpr static std::uint16_t max_write_bits         = 1968;
-    constexpr static std::uint16_t max_read_registers     = 125;
-    constexpr static std::uint16_t max_read_fifo          = 31;
-    constexpr static std::uint16_t max_write_registers    = 123;
-    constexpr static std::uint16_t max_wr_write_registers = 121;
-    constexpr static std::uint16_t max_wr_read_registers  = 125;
-    constexpr static std::uint16_t max_pdu_length         = 253;
-    constexpr static std::uint16_t max_adu_length         = 256;
-    constexpr static std::uint16_t min_adu_length         = 3;
-    constexpr static std::size_t   max_function_id        = 0x7f;
-    constexpr static std::uint16_t on_coil_value          = 0xff00;
-    constexpr static std::uint16_t off_coil_value         = 0x0000;
+    static constexpr std::uint8_t  broadcast_address      = 0;
+    static constexpr std::uint16_t max_read_bits          = 2000;
+    static constexpr std::uint16_t max_write_bits         = 1968;
+    static constexpr std::uint16_t max_read_registers     = 125;
+    static constexpr std::uint16_t max_read_fifo          = 31;
+    static constexpr std::uint16_t max_write_registers    = 123;
+    static constexpr std::uint16_t max_wr_write_registers = 121;
+    static constexpr std::uint16_t max_wr_read_registers  = 125;
+    static constexpr std::uint16_t max_pdu_length         = 253;
+    static constexpr std::uint16_t max_adu_length         = 256;
+    static constexpr std::uint16_t min_adu_length         = 3;
+    static constexpr std::size_t   max_function_id        = 0x7f;
+    static constexpr std::uint16_t on_coil_value          = 0xff00;
+    static constexpr std::uint16_t off_coil_value         = 0x0000;
 
     using request_type_read      = packet<header, request_fields_read, crc16ansi>;
     using request_type_wr_single = packet<header, request_fields_wr_single, crc16ansi>;
     using request_type_wr_mask   = packet<header, request_fields_wr_mask, crc16ansi>;
     using request_type_err       = packet<header, null_field, crc16ansi>;
-    using request_type_fifo      = packet<header, msb_t<std::uint16_t>, crc16ansi>;
+    using request_type_fifo      = packet<header, func::msb_t<std::uint16_t>, crc16ansi>;
     using msg_type               = packet_accessor<max_adu_length>;
 
 protected:
@@ -164,11 +165,9 @@ public:
     inline void
     increment_counter(diagnostics_sub_function counter)
     {
-        const auto     val = static_cast<std::uint16_t>(counter);
-        constexpr auto base
-            = static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_message_count);
-        constexpr auto max
-            = static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_char_overrun_count);
+        auto const     val  = static_cast<std::uint16_t>(counter);
+        constexpr auto base = static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_message_count);
+        constexpr auto max  = static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_char_overrun_count);
         if ((base <= val) && (val <= max)) [[likely]] {
             counters_[val - base]++;
         }
@@ -177,11 +176,9 @@ public:
     inline std::uint16_t
     get_counter(std::uint16_t cnt)
     {
-        const auto     val = cnt;
-        constexpr auto base
-            = static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_message_count);
-        constexpr auto max
-            = static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_char_overrun_count);
+        auto const     val  = cnt;
+        constexpr auto base = static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_message_count);
+        constexpr auto max  = static_cast<std::uint16_t>(diagnostics_sub_function::return_bus_char_overrun_count);
         if ((base <= val) && (val <= max)) [[likely]] {
             return counters_[val - base];
         }
@@ -201,7 +198,8 @@ public:
     }
 
     virtual inline void
-    reset() noexcept = 0;
+    reset() noexcept
+        = 0;
 
     inline void
     diagnostic_register(std::uint16_t val) noexcept
@@ -234,7 +232,8 @@ public:
     }
 
     virtual bool
-    send(msg_type::array_type::iterator begin, msg_type::array_type::iterator end) noexcept = 0;
+    send(msg_type::array_type::iterator begin, msg_type::array_type::iterator end) noexcept
+        = 0;
 
     template <class InputIterator>
     constexpr exception
@@ -267,13 +266,16 @@ public:
     }
 
     virtual inline bool
-    idle() noexcept = 0;
+    idle() noexcept
+        = 0;
 
     virtual exception
-    received() noexcept = 0;
+    received() noexcept
+        = 0;
 
     virtual exception
-    processing() noexcept = 0;
+    processing() noexcept
+        = 0;
 
     inline msg_type&
     input() noexcept
@@ -281,7 +283,7 @@ public:
         return input_msg_;
     }
 
-    [[nodiscard]] inline const msg_type&
+    [[nodiscard]] inline msg_type const&
     input() const noexcept
     {
         return input_msg_;
@@ -293,7 +295,7 @@ public:
         return output_msg_;
     }
 
-    [[nodiscard]] inline const msg_type&
+    [[nodiscard]] inline msg_type const&
     output() const noexcept
     {
         return output_msg_;
@@ -303,4 +305,4 @@ public:
 template <std::uint8_t Id, std::uint16_t Inputs, std::uint16_t Coils, std::uint16_t InputRegisters,
           std::uint16_t HoldingRegisters, std::uint16_t Fifo = 1>
 class modbus_slave;
-}    // namespace xitren::components::modbus
+}    // namespace xitren::modbus

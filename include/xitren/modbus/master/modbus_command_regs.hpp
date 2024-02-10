@@ -1,10 +1,10 @@
 #pragma once
 
-#include "modbus_command.hpp"
+#include <xitren/modbus/master/modbus_command.hpp>
 
 #include <utility>
 
-namespace loveka::components::modbus {
+namespace xitren::modbus {
 
 class read_registers : public modbus_command {
 public:
@@ -16,17 +16,13 @@ public:
                    types::callback_regs_type callback) noexcept
         : size_{size}, callback_{std::move(callback)}, modbus_command{slave, address}
     {
-        const std::uint32_t max_address = address + size_ - 1;
-        if (max_address > static_cast<std::uint32_t>(std::numeric_limits<std::uint16_t>::max()))
-            [[unlikely]] {
+        std::uint32_t const max_address = address + size_ - 1;
+        if (max_address > static_cast<std::uint32_t>(std::numeric_limits<std::uint16_t>::max())) [[unlikely]] {
             error(exception::illegal_data_address);
             return;
         }
-        if (!msg().template serialize<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>(
-                {{slave, static_cast<uint8_t>(function::read_holding_registers)},
-                 {address, size_},
-                 0,
-                 nullptr})) {
+        if (!msg().template serialize<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>(
+                {{slave, static_cast<uint8_t>(function::read_holding_registers)}, {address, size_}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
         }
@@ -34,13 +30,11 @@ public:
 
     read_registers(std::uint8_t slave, types::callback_regs_type callback, std::uint8_t* begin,
                    std::uint8_t* end) noexcept
-        : size_{static_cast<size_t>(end - begin)},
-          callback_{std::move(callback)},
-          modbus_command{slave, 0}
+        : size_{static_cast<size_t>(end - begin)}, callback_{std::move(callback)}, modbus_command{slave, 0}
     {
         msg().size(end - begin);
-        for (auto it{begin}, it_n{msg().storage().begin()};
-             (it != end) && (it_n != msg().storage().end()); it++, it_n++) {
+        for (auto it{begin}, it_n{msg().storage().begin()}; (it != end) && (it_n != msg().storage().end());
+             it++, it_n++) {
             (*it_n) = (*it);
         }
     }
@@ -56,10 +50,10 @@ public:
     }
 
     exception
-    receive(const msg_type& message) noexcept override
+    receive(msg_type const& message) noexcept override
     {
         static std::array<std::uint16_t, modbus_base::max_read_registers> values{};
-        auto [pack, err] = input_msg<header, std::uint8_t, msb_t<std::uint16_t>>(slave(), message);
+        auto [pack, err] = input_msg<header, std::uint8_t, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
         if (pack.size > modbus_base::max_read_registers) [[unlikely]]
@@ -88,17 +82,13 @@ public:
                    types::callback_function_type callback) noexcept
         : val_{val}, callback_{std::move(callback)}, modbus_command{slave, address}
     {
-        const std::uint32_t max_address = address;
-        if (max_address > static_cast<std::uint32_t>(std::numeric_limits<std::uint16_t>::max()))
-            [[unlikely]] {
+        std::uint32_t const max_address = address;
+        if (max_address > static_cast<std::uint32_t>(std::numeric_limits<std::uint16_t>::max())) [[unlikely]] {
             error(exception::illegal_data_address);
             return;
         }
         if (!msg().template serialize<header, request_fields_read, std::uint8_t, crc16ansi>(
-                {{slave, static_cast<uint8_t>(function::write_single_register)},
-                 {address, val},
-                 0,
-                 nullptr})) {
+                {{slave, static_cast<uint8_t>(function::write_single_register)}, {address, val}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
         }
@@ -115,7 +105,7 @@ public:
     }
 
     exception
-    receive(const msg_type& message) noexcept override
+    receive(msg_type const& message) noexcept override
     {
         auto [pack, err] = input_msg<header, std::uint8_t, std::uint8_t>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
@@ -141,17 +131,13 @@ public:
                          types::callback_regs_type callback) noexcept
         : size_{size}, callback_{std::move(callback)}, modbus_command{slave, address}
     {
-        const std::uint32_t max_address = address + size_ - 1;
-        if (max_address > static_cast<std::uint32_t>(std::numeric_limits<std::uint16_t>::max()))
-            [[unlikely]] {
+        std::uint32_t const max_address = address + size_ - 1;
+        if (max_address > static_cast<std::uint32_t>(std::numeric_limits<std::uint16_t>::max())) [[unlikely]] {
             error(exception::illegal_data_address);
             return;
         }
-        if (!msg().template serialize<header, request_fields_read, msb_t<std::uint16_t>, crc16ansi>(
-                {{slave, static_cast<uint8_t>(function::read_input_registers)},
-                 {address, size_},
-                 0,
-                 nullptr})) {
+        if (!msg().template serialize<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>(
+                {{slave, static_cast<uint8_t>(function::read_input_registers)}, {address, size_}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
         }
@@ -168,10 +154,10 @@ public:
     }
 
     exception
-    receive(const msg_type& message) noexcept override
+    receive(msg_type const& message) noexcept override
     {
         static std::array<std::uint16_t, modbus_base::max_read_registers> values{};
-        auto [pack, err] = input_msg<header, std::uint8_t, msb_t<std::uint16_t>>(slave(), message);
+        auto [pack, err] = input_msg<header, std::uint8_t, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
         if (pack.size > modbus_base::max_read_registers) [[unlikely]]
@@ -193,32 +179,27 @@ private:
 class write_registers : public modbus_command {
 public:
     template <std::size_t Size>
-    write_registers(std::uint8_t slave, std::uint16_t address,
-                    const std::array<std::uint16_t, Size>& vals) noexcept
+    write_registers(std::uint8_t slave, std::uint16_t address, std::array<std::uint16_t, Size> const& vals) noexcept
         : write_registers{slave, address, vals, nullptr}
     {}
 
     template <std::size_t Size>
-    write_registers(std::uint8_t slave, std::uint16_t address,
-                    const std::array<std::uint16_t, Size>& vals,
-                    types::callback_function_type          callback) noexcept
+    write_registers(std::uint8_t slave, std::uint16_t address, std::array<std::uint16_t, Size> const& vals,
+                    types::callback_function_type callback) noexcept
         : callback_{std::move(callback)}, modbus_command{slave, address}
     {
-        const std::uint32_t max_address = address + Size - 1;
+        std::uint32_t const max_address = address + Size - 1;
         static_assert(Size < modbus_base::max_write_registers, "Too much to write!");
-        constexpr std::array<msb_t<std::uint16_t>, Size> data_formatted;
+        constexpr std::array<func::msb_t<std::uint16_t>, Size> data_formatted;
         for (std::input_iterator auto it1{vals.begin()}, it2{data_formatted.begin()};
              (it1 != vals.end()) && (it2 != data_formatted.end()); it1++, it2++) {
             (*it2) = (*it1);
         }
-        if (!msg()
-                 .template serialize<header, request_fields_wr_single, msb_t<std::uint16_t>,
-                                     crc16ansi>(
-                     {{slave, static_cast<std::uint8_t>(function::write_multiple_registers)},
-                      {address, static_cast<std::uint16_t>(vals.size()),
-                       static_cast<std::uint8_t>(Size * 2)},
-                      Size,
-                      data_formatted.data()})) {
+        if (!msg().template serialize<header, request_fields_wr_single, func::msb_t<std::uint16_t>, crc16ansi>(
+                {{slave, static_cast<std::uint8_t>(function::write_multiple_registers)},
+                 {address, static_cast<std::uint16_t>(vals.size()), static_cast<std::uint8_t>(Size * 2)},
+                 Size,
+                 data_formatted.data()})) {
             error(exception::illegal_data_address);
             return;
         }
@@ -235,7 +216,7 @@ public:
     }
 
     exception
-    receive(const msg_type& message) noexcept override
+    receive(msg_type const& message) noexcept override
     {
         auto [pack, err] = input_msg<header, std::uint8_t, std::uint8_t>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
@@ -250,4 +231,4 @@ private:
     types::callback_function_type callback_;
 };
 
-}    // namespace xitren::components::modbus
+}    // namespace xitren::modbus

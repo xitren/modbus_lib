@@ -1,12 +1,11 @@
-#include <loveka/components/modbus/crc16ansi.hpp>
-#include <loveka/components/modbus/modbus.hpp>
-#include <loveka/components/modbus/packet.hpp>
-#include <loveka/components/modbus/serial_parsers.hpp>
-#include <loveka/components/utils/circular_buffer.hpp>
+#include <xitren/circular_buffer.hpp>
+#include <xitren/modbus/crc16ansi.hpp>
+#include <xitren/modbus/modbus.hpp>
+#include <xitren/modbus/packet.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace loveka::components::modbus;
+using namespace xitren::modbus;
 
 TEST(modbus_packet_test, crc16ansi)
 {
@@ -47,11 +46,10 @@ TEST(modbus_packet_test, deserialize)
     std::array<std::uint16_t, 3> a{1, 2, 3};
 
     packet_accessor<255> arr2{};
-    auto pack = packet_accessor<255>::fields_in<header, std::uint8_t, std::uint16_t>{
+    auto                 pack = packet_accessor<255>::fields_in<header, std::uint8_t, std::uint16_t>{
         {0x10, static_cast<uint8_t>(function::read_input_registers)}, {}, a.size(), a.begin()};
     arr2.template serialize<header, std::uint8_t, std::uint16_t, crc16ansi>(pack);
-    auto [header_f, field, valid, size, data]
-        = arr2.deserialize<header, std::uint8_t, std::uint16_t, crc16ansi>();
+    auto [header_f, field, valid, size, data] = arr2.deserialize<header, std::uint8_t, std::uint16_t, crc16ansi>();
     ASSERT_EQ(size, a.size());
     for (std::size_t i = 0; i < a.size(); i++)
         ASSERT_EQ(data[i], a[i]);

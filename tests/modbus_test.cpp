@@ -1,17 +1,17 @@
-#include "loveka/components/modbus/master/modbus_master.hpp"
-#include "loveka/components/modbus/slave/modbus_slave.hpp"
-#include <loveka/components/modbus/crc16ansi.hpp>
-#include <loveka/components/modbus/packet.hpp>
-#include <loveka/components/utils/circular_buffer.hpp>
-#include <loveka/components/utils/observer.hpp>
+#include <xitren/circular_buffer.hpp>
+#include <xitren/comm/observer.hpp>
+#include <xitren/modbus/crc16ansi.hpp>
+#include <xitren/modbus/master/modbus_master.hpp>
+#include <xitren/modbus/packet.hpp>
+#include <xitren/modbus/slave/modbus_slave.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace loveka::components::modbus;
+using namespace xitren::modbus;
 
 using slave_type      = modbus_slave<0x02, 10, 10, 10, 10, 64>;
-using observer_type   = loveka::components::utils::observer<std::vector<std::uint8_t>>;
-using observable_type = loveka::components::utils::observable<std::vector<std::uint8_t>>;
+using observer_type   = xitren::comm::observer<std::vector<std::uint8_t>>;
+using observable_type = xitren::comm::observable<std::vector<std::uint8_t>>;
 
 class test_slave : public slave_type, public observer_type, public observable_type {
 
@@ -41,7 +41,7 @@ public:
     }
 
     void
-    data(const void*, const std::vector<std::uint8_t>& nd) override
+    data(void const*, std::vector<std::uint8_t> const& nd) override
     {
         receive(nd.begin(), nd.end());
         processing();
@@ -118,7 +118,7 @@ public:
     }
 
     void
-    data(const void*, const std::vector<std::uint8_t>& nd) override
+    data(void const*, std::vector<std::uint8_t> const& nd) override
     {
         receive(nd.begin(), nd.end());
     }
@@ -129,7 +129,7 @@ private:
 
 template <typename T, size_t Size>
 bool
-arrays_match(const std::array<T, Size>& expected, const std::array<T, Size>& actual)
+arrays_match(std::array<T, Size> const& expected, std::array<T, Size> const& actual)
 {
     std::cout << "===========Expected " << std::endl;
     std::cout << std::noshowbase << std::internal << std::setfill('0');
@@ -139,8 +139,8 @@ arrays_match(const std::array<T, Size>& expected, const std::array<T, Size>& act
     std::cout << std::endl;
     for (size_t i{0}; i < Size; ++i) {
         if (expected[i] != actual[i]) {
-            std::cout << "array[" << i << "] (" << actual[i] << ") != expected[" << i << "] ("
-                      << expected[i] << ")" << std::endl;
+            std::cout << "array[" << i << "] (" << actual[i] << ") != expected[" << i << "] (" << expected[i] << ")"
+                      << std::endl;
             return false;
         }
     }
@@ -264,7 +264,7 @@ TEST(modbus_test, modbus_master_fifo)
 
     std::array<std::uint16_t, 3> arr{3, 4, 5};
     sl << arr;
-    loveka::components::utils::circular_buffer<uint16_t, 16> buffer;
+    xitren::containers::circular_buffer<uint16_t, 16> buffer;
     ms.read_fifo_queue(address, 0x01, buffer);
     EXPECT_TRUE(buffer.front() == 4);
 }

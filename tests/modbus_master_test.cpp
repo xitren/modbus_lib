@@ -1,13 +1,13 @@
-#include "loveka/components/modbus/master/modbus_master.hpp"
-#include "loveka/components/modbus/slave/modbus_slave.hpp"
-#include <loveka/components/modbus/crc16ansi.hpp>
-#include <loveka/components/modbus/packet.hpp>
-#include <loveka/components/utils/circular_buffer.hpp>
-#include <loveka/components/utils/observer.hpp>
+#include <xitren/circular_buffer.hpp>
+#include <xitren/comm/observer.hpp>
+#include <xitren/modbus/crc16ansi.hpp>
+#include <xitren/modbus/master/modbus_master.hpp>
+#include <xitren/modbus/packet.hpp>
+#include <xitren/modbus/slave/modbus_slave.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace loveka::components::modbus;
+using namespace xitren::modbus;
 
 class test_master : public modbus_master {
 
@@ -59,7 +59,7 @@ private:
 
 template <typename T, size_t Size>
 bool
-arrays_match(const std::array<T, Size>& expected, const std::vector<T>& actual)
+arrays_match(std::array<T, Size> const& expected, std::vector<T> const& actual)
 {
     std::cout << "===========Expected " << std::endl;
     std::cout << std::noshowbase << std::internal << std::setfill('0');
@@ -67,14 +67,13 @@ arrays_match(const std::array<T, Size>& expected, const std::vector<T>& actual)
         std::cout << std::hex << std::setw(2) << static_cast<int>(i) << std::dec << " ";
     }
     std::cout << std::endl << "CRC:";
-    std::cout << std::hex << std::setw(4)
-              << crc16ansi::calculate(expected.begin(), expected.end() - 2).get() << std::dec
-              << " ";
+    std::cout << std::hex << std::setw(4) << crc16ansi::calculate(expected.begin(), expected.end() - 2).get()
+              << std::dec << " ";
     std::cout << std::endl;
     for (size_t i{0}; i < Size; ++i) {
         if (expected[i] != actual[i]) {
-            std::cout << "array[" << i << "] (" << actual[i] << ") != expected[" << i << "] ("
-                      << expected[i] << ")" << std::endl;
+            std::cout << "array[" << i << "] (" << actual[i] << ") != expected[" << i << "] (" << expected[i] << ")"
+                      << std::endl;
             return false;
         }
     }
@@ -165,11 +164,9 @@ TEST(modbus_master_test, modbus_master_write_registers)
     test_master                  ms;
     std::array<std::uint16_t, 1> val{};
     std::array<std::uint16_t, 6> val2{};
-    std::array<std::uint8_t, 11> array{0x22, 0x10, 0x00, 0x00, 0x00, 0x01,
-                                       0x02, 0x00, 0x0A, 0xAB, 0x66};
-    std::array<std::uint8_t, 21> array2{0x22, 0x10, 0x00, 0x25, 0x00, 0x06, 0x0C,
-                                        0x01, 0x0A, 0x02, 0x0A, 0x03, 0x0A, 0x04,
-                                        0x0A, 0x05, 0x0A, 0x06, 0x0A, 0xCC, 0x57};
+    std::array<std::uint8_t, 11> array{0x22, 0x10, 0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x0A, 0xAB, 0x66};
+    std::array<std::uint8_t, 21> array2{0x22, 0x10, 0x00, 0x25, 0x00, 0x06, 0x0C, 0x01, 0x0A, 0x02, 0x0A,
+                                        0x03, 0x0A, 0x04, 0x0A, 0x05, 0x0A, 0x06, 0x0A, 0xCC, 0x57};
 
     val[0] = 0x000A;
     ms.write_registers(address, 0, val);
@@ -199,7 +196,7 @@ TEST(modbus_master_test, modbus_master_write_register)
 
 TEST(modbus_master_test, modbus_master_fifo)
 {
-    using buffer_type = loveka::components::utils::circular_buffer<std::uint16_t, 1024>;
+    using buffer_type = xitren::containers::circular_buffer<std::uint16_t, 1024>;
 
     constexpr auto              address = 0x22;
     test_master                 ms;
