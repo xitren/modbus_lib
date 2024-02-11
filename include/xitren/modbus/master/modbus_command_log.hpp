@@ -16,7 +16,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
-        if (!msg_output_.template serialize<header, request_fields_log, msb_t<std::uint16_t>, crc16ansi>(
+        if (!msg_output_.template serialize<header, request_fields_log, func::msb_t<std::uint16_t>, crc16ansi>(
                 {{slave, static_cast<uint8_t>(function::read_log)}, {address, size_}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;

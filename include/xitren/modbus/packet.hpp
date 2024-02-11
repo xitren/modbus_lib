@@ -90,7 +90,7 @@ public:
         return pure_;
     }
 
-    static consteval array_type
+    static constexpr array_type
     serialize(Header const& header, Fields const& fields) noexcept
     {
         auto data_tr = func::data<struct_nocrc_type>::serialize({header, fields});
@@ -99,7 +99,7 @@ public:
     }
 
     template <std::size_t Size>
-    static consteval std::tuple<bool, Header, Fields>
+    static constexpr std::tuple<bool, Header, Fields>
     deserialize(std::array<std::uint8_t, Size> const& array) noexcept
     {
         auto [header, fields, crc] = func::data<struct_type>::serialize(array);

@@ -84,7 +84,7 @@ public:
     receive(msg_type const& message) noexcept override
     {
         static std::uint16_t values{};
-        auto [pack, err] = input_msg<header, func::msb_t<std::uint16_t>, msb_t<std::uint16_t>>(slave(), message);
+        auto [pack, err] = input_msg<header, func::msb_t<std::uint16_t>, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]] {
             Callback(err, 0);
             return err;
@@ -118,7 +118,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
-        if (!msg_output_.template serialize<header, func::msb_t<std::uint16_t>, msb_t<std::uint16_t>, crc16ansi>(
+        if (!msg_output_.template serialize<header, func::msb_t<std::uint16_t>, func::msb_t<std::uint16_t>, crc16ansi>(
                 {{slave, static_cast<uint8_t>(function::diagnostic)}, static_cast<uint16_t>(sub), 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
@@ -185,7 +185,7 @@ public:
     receive(msg_type const& message) noexcept override
     {
         static std::array<std::uint16_t, modbus_base::max_read_registers> values{};
-        auto [pack, err] = input_msg<header, func::msb_t<std::uint16_t>, msb_t<std::uint16_t>>(slave(), message);
+        auto [pack, err] = input_msg<header, func::msb_t<std::uint16_t>, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]] {
             callback_(err, nullptr, nullptr);
             return err;

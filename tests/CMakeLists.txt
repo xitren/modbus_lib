@@ -11,6 +11,12 @@ target_link_libraries(GTest::GTest INTERFACE gtest_main)
 
 include(GoogleTest)
 
+FetchContent_Declare(
+        extern_spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG        v1.8.2)
+FetchContent_MakeAvailable(extern_spdlog)
+
 file(GLOB TESTS *.cpp)
 
 foreach (file ${TESTS})
@@ -22,6 +28,6 @@ foreach (file ${TESTS})
         target_compile_options(${tgt} PRIVATE -Wall -Wextra -Wpedantic -Wc++20-compat -Wno-format-security
                 -Woverloaded-virtual -Wsuggest-override)
     endif ()
-    target_link_libraries(${tgt} PRIVATE ${LIBRARY_NAME} GTest::gtest GTest::GTest -pthread)
+    target_link_libraries(${tgt} PRIVATE ${LIBRARY_NAME} spdlog::spdlog_header_only GTest::gtest GTest::GTest -pthread)
     gtest_discover_tests(${tgt} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endforeach ()

@@ -124,7 +124,7 @@ class write_registers_static : public modbus_command {
         std::array<func::msb_t<std::uint16_t>, Size> data;
     };
 
-    static consteval std::array<func::msb_t<std::uint16_t>, Size>
+    static constexpr std::array<func::msb_t<std::uint16_t>, Size>
     swap(std::array<std::uint16_t, Size> const& val) noexcept
     {
         std::array<func::msb_t<std::uint16_t>, Size> data_r;

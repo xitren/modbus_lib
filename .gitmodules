@@ -1,7 +1,7 @@
 [submodule "third_party/crc"]
 	path = third_party/crc
 	url = https://github.com/xitren/crc.git
-	tag = v1.0.0
+	tag = v1.0.1
 [submodule "third_party/circular_buffer"]
 	path = third_party/circular_buffer
 	url = https://github.com/xitren/circular_buffer.git

@@ -338,8 +338,9 @@ public:
     {
         static_assert(Size < modbus_base::max_write_registers, "Too much to write!");
         static std::array<func::msb_t<std::uint16_t>, Size> data_formatted;
-        for (auto it1{vals.begin()}, it2{data_formatted.begin()}; (it1 != vals.end()) && (it2 != data_formatted.end());
-             it1++, it2++) {
+        auto                                                it1{vals.begin()};
+        auto                                                it2{data_formatted.begin()};
+        for (; (it1 != vals.end()) && (it2 != data_formatted.end()); it1++, it2++) {
             (*it2) = (*it1);
         }
         if (!msg_output_.template serialize<header, request_fields_wr_single, func::msb_t<std::uint16_t>, crc16ansi>(
