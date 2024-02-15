@@ -1,15 +1,15 @@
+#include "xitren/modbus/master.hpp"
+#include "xitren/modbus/slave.hpp"
 #include <xitren/circular_buffer.hpp>
 #include <xitren/comm/observer.hpp>
 #include <xitren/modbus/crc16ansi.hpp>
-#include <xitren/modbus/master/modbus_master.hpp>
 #include <xitren/modbus/packet.hpp>
-#include <xitren/modbus/slave/modbus_slave.hpp>
 
 #include <gtest/gtest.h>
 
 using namespace xitren::modbus;
 
-class test_master : public modbus_master {
+class test_master : public master {
 
     bool
     send(msg_type::array_type::iterator begin, msg_type::array_type::iterator end) noexcept override

@@ -1,11 +1,28 @@
+/*!
+_ _
+__ _(_) |_ _ _ ___ _ _
+\ \ / |  _| '_/ -_) ' \
+/_\_\_|\__|_| \___|_||_|
+* @date 15.02.2024
+*/
 #pragma once
+#include <xitren/modbus/functions/diagnostics.hpp>
+#include <xitren/modbus/functions/get_current_log_level.hpp>
+#include <xitren/modbus/functions/identification.hpp>
+#include <xitren/modbus/functions/read_coils.hpp>
+#include <xitren/modbus/functions/read_exception_status.hpp>
+#include <xitren/modbus/functions/read_fifo.hpp>
+#include <xitren/modbus/functions/read_holding.hpp>
+#include <xitren/modbus/functions/read_input_regs.hpp>
+#include <xitren/modbus/functions/read_inputs.hpp>
+#include <xitren/modbus/functions/read_log.hpp>
+#include <xitren/modbus/functions/set_max_log_level.hpp>
+#include <xitren/modbus/functions/write_coils.hpp>
+#include <xitren/modbus/functions/write_register_mask.hpp>
+#include <xitren/modbus/functions/write_registers.hpp>
+#include <xitren/modbus/functions/write_single_coil.hpp>
+#include <xitren/modbus/functions/write_single_register.hpp>
 #include <xitren/modbus/modbus.hpp>
-#include <xitren/modbus/slave/modbus_diagnostics_functions.hpp>
-#include <xitren/modbus/slave/modbus_fifo_functions.hpp>
-#include <xitren/modbus/slave/modbus_identification_functions.hpp>
-#include <xitren/modbus/slave/modbus_log_functions.hpp>
-#include <xitren/modbus/slave/modbus_read_functions.hpp>
-#include <xitren/modbus/slave/modbus_write_functions.hpp>
 
 #include <concepts>
 #include <limits>
@@ -15,7 +32,7 @@ namespace xitren::modbus {
 
 template <modbus_slave_container TInputs, modbus_slave_container TCoils, modbus_slave_container TInputRegisters,
           modbus_slave_container THoldingRegisters, std::uint16_t Fifo>
-class modbus_slave_base : public modbus_base {
+class slave_base : public modbus_base {
 protected:
     using inputs_type       = TInputs;
     using coils_type        = TCoils;
@@ -35,34 +52,34 @@ protected:
     static_assert(THoldingRegisters{}.size() > 0, "HoldingRegisters must be more than 0!");
 
 public:
-    using slave_type    = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
-    using error_type    = packet<header, error_fields, crc16ansi>;
-    using function_type = exception (*)(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>&);
+    using slave_type          = slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
+    using error_type          = packet<header, error_fields, crc16ansi>;
+    using function_type       = exception (*)(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>&);
     using function_table_type = std::array<function_type, max_function_id + 1>;
     using fifo_type           = containers::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
     using log_type            = containers::circular_buffer<std::uint8_t, xitren::modbus::log::log_size>;
 
-    constexpr explicit modbus_slave_base(std::uint8_t slave_id, inputs_type const& inputs, coils_type& coils,
-                                         input_regs_type const& input_regs, holding_regs_type& holding_regs)
+    constexpr explicit slave_base(std::uint8_t slave_id, inputs_type const& inputs, coils_type& coils,
+                                  input_regs_type const& input_regs, holding_regs_type& holding_regs)
         : slave_id_{slave_id},
           inputs_{inputs},
           coils_{coils},
           input_registers_{input_regs},
           holding_registers_{holding_regs}
     {
-        register_function(function::read_coils, &read_coils);
-        register_function(function::read_discrete_inputs, &read_inputs);
-        register_function(function::read_holding_registers, &read_holding);
-        register_function(function::read_input_registers, &read_input_regs);
-        register_function(function::write_multiple_registers, &write_registers);
-        register_function(function::write_single_register, &write_single_register);
-        register_function(function::write_multiple_coils, &write_coils);
-        register_function(function::write_single_coil, &write_single_coil);
-        register_function(function::read_log, &read_log);
-        register_function(function::set_max_log_level, &set_max_log_level);
-        register_function(function::get_current_log_level, &get_current_log_level);
-        register_function(function::diagnostic, &diagnostics);
-        register_function(function::read_device_identification, &identification);
+        register_function(function::read_coils, &functions::read_coils);
+        register_function(function::read_discrete_inputs, &functions::read_inputs);
+        register_function(function::read_holding_registers, &functions::read_holding);
+        register_function(function::read_input_registers, &functions::read_input_regs);
+        register_function(function::write_multiple_registers, &functions::write_registers);
+        register_function(function::write_single_register, &functions::write_single_register);
+        register_function(function::write_multiple_coils, &functions::write_coils);
+        register_function(function::write_single_coil, &functions::write_single_coil);
+        register_function(function::read_log, &functions::read_log);
+        register_function(function::set_max_log_level, &functions::set_max_log_level);
+        register_function(function::get_current_log_level, &functions::get_current_log_level);
+        register_function(function::diagnostic, &functions::diagnostics);
+        register_function(function::read_device_identification, &functions::identification);
     }
 
     void
@@ -313,7 +330,7 @@ public:
     }
 
     template <std::ranges::common_range Array>
-    modbus_slave_base&
+    slave_base&
     to_log(Array const& in_data)
     {
         for (auto const& item : in_data) {
@@ -332,97 +349,6 @@ private:
     holding_regs_type&     holding_registers_;
     function_table_type    defined_functions_table_{};
     log_type               log_{};
-};
-
-template <modbus_slave_container TInputs, modbus_slave_container TCoils, modbus_slave_container TInputRegisters,
-          modbus_slave_container THoldingRegisters, std::uint16_t Fifo>
-class modbus_slave_ext : public modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo> {
-    static_assert(Fifo > 0, "FIFO length must be more than 0!");
-
-public:
-    using slave_type    = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
-    using error_type    = packet<header, error_fields, crc16ansi>;
-    using function_type = exception (*)(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>&);
-    using function_table_type = std::array<function_type, slave_type::max_function_id + 1>;
-    using fifo_type           = containers::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
-    using log_type            = containers::circular_buffer<std::uint8_t, slave_type::log_size>;
-
-    constexpr explicit modbus_slave_ext(std::uint8_t slave_id, typename slave_type::inputs_type const& inputs,
-                                        typename slave_type::coils_type&            coils,
-                                        typename slave_type::input_regs_type const& input_regs,
-                                        typename slave_type::holding_regs_type&     holding_regs)
-        : slave_type{slave_id, inputs, coils, input_regs, holding_regs}
-    {
-        slave_type::register_function(function::write_single_coil, &write_single_coil);
-        slave_type::register_function(function::write_single_register, &write_single_register);
-        slave_type::register_function(function::mask_write_register, &write_register_mask);
-        slave_type::register_function(function::read_exception_status, &read_exception_status);
-        slave_type::register_function(function::read_fifo, &read_fifo);
-    }
-
-    inline fifo_type&
-    fifo() noexcept
-    {
-        return fifo_;
-    }
-
-    [[nodiscard]] inline constexpr fifo_type&
-    fifo() const noexcept
-    {
-        return fifo_;
-    }
-
-    template <std::ranges::common_range Array>
-    modbus_slave_ext&
-    operator<<(Array const& in_data)
-    {
-        for (std::uint16_t const& item : in_data) {
-            fifo_.push(item);
-        }
-        return *this;
-    }
-
-private:
-    fifo_type fifo_{};
-};
-
-template <std::uint16_t Inputs, std::uint16_t Coils, std::uint16_t InputRegisters, std::uint16_t HoldingRegisters,
-          std::uint16_t Fifo>
-class modbus_slave : public modbus_slave_base<std::array<bool, Inputs>, std::array<bool, Coils>,
-                                              std::array<std::uint16_t, InputRegisters>,
-                                              std::array<std::uint16_t, HoldingRegisters>, Fifo> {
-protected:
-    using modbus_slave_base_type = modbus_slave_base<std::array<bool, Inputs>, std::array<bool, Coils>,
-                                                     std::array<std::uint16_t, InputRegisters>,
-                                                     std::array<std::uint16_t, HoldingRegisters>, Fifo>;
-    using inputs_type            = typename modbus_slave_base_type::inputs_type;
-    using coils_type             = typename modbus_slave_base_type::coils_type;
-    using input_regs_type        = typename modbus_slave_base_type::input_regs_type;
-    using holding_regs_type      = typename modbus_slave_base_type::holding_regs_type;
-
-public:
-    constexpr explicit modbus_slave(std::uint8_t slave_id)
-        : modbus_slave_base_type::modbus_slave_base(slave_id, inputs_data_, coils_data_, input_registers_data_,
-                                                    holding_registers_data_)
-    {}
-
-    inline input_regs_type&
-    input_registers() noexcept
-    {
-        return input_registers_data_;
-    }
-
-    inline inputs_type&
-    inputs() noexcept
-    {
-        return inputs_data_;
-    }
-
-private:
-    inputs_type       inputs_data_{};
-    coils_type        coils_data_{};
-    input_regs_type   input_registers_data_{};
-    holding_regs_type holding_registers_data_{};
 };
 
 }    // namespace xitren::modbus

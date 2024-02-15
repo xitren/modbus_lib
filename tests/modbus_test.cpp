@@ -1,15 +1,15 @@
+#include "xitren/modbus/master.hpp"
+#include "xitren/modbus/slave.hpp"
 #include <xitren/circular_buffer.hpp>
 #include <xitren/comm/observer.hpp>
 #include <xitren/modbus/crc16ansi.hpp>
-#include <xitren/modbus/master/modbus_master.hpp>
 #include <xitren/modbus/packet.hpp>
-#include <xitren/modbus/slave/modbus_slave.hpp>
 
 #include <gtest/gtest.h>
 
 using namespace xitren::modbus;
 
-using slave_type      = modbus_slave<10, 10, 10, 10, 64>;
+using slave_type      = slave<10, 10, 10, 10, 64>;
 using observer_type   = xitren::comm::observer<std::vector<std::uint8_t>>;
 using observable_type = xitren::comm::observable<std::vector<std::uint8_t>>;
 
@@ -32,7 +32,7 @@ class test_slave : public slave_type, public observer_type, public observable_ty
     }
 
 public:
-    test_slave() : modbus_slave(0x22) { exception_status_ = 0x55; }
+    test_slave() : slave(0x22) { exception_status_ = 0x55; }
 
     inline std::vector<std::uint8_t>&
     last()
@@ -67,7 +67,7 @@ private:
 
 using custom_slave_bits_type      = std::array<bool, 10>;
 using custom_slave_registers_type = std::array<std::uint16_t, 10>;
-using custom_slave_type = modbus_slave_base<custom_slave_bits_type, custom_slave_bits_type, custom_slave_registers_type,
+using custom_slave_type = slave_base<custom_slave_bits_type, custom_slave_bits_type, custom_slave_registers_type,
                                             custom_slave_registers_type, 64>;
 
 class test_custom_slave : public custom_slave_type, public observer_type, public observable_type {
@@ -89,7 +89,7 @@ class test_custom_slave : public custom_slave_type, public observer_type, public
     }
 
 public:
-    test_custom_slave() : modbus_slave_base(0x22, bits_, bits_, registers_, registers_) { exception_status_ = 0x55; }
+    test_custom_slave() : slave_base(0x22, bits_, bits_, registers_, registers_) { exception_status_ = 0x55; }
 
     inline std::vector<std::uint8_t>&
     last()
@@ -112,7 +112,7 @@ private:
     custom_slave_registers_type registers_{};
 };
 
-class test_master : public modbus_master, public observer_type, public observable_type {
+class test_master : public master, public observer_type, public observable_type {
 
     bool
     send(msg_type::array_type::iterator begin, msg_type::array_type::iterator end) noexcept override

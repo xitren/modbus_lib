@@ -1,20 +1,33 @@
+#include <xitren/modbus/master.hpp>
+#include <xitren/modbus/commands/get_log_lvl.hpp>
+#include <xitren/modbus/commands/instant/read_diagnostics_cnt.hpp>
+#include <xitren/modbus/commands/instant/read_registers.hpp>
+#include <xitren/modbus/commands/instant/write_registers.hpp>
+#include <xitren/modbus/commands/read_bits.hpp>
+#include <xitren/modbus/commands/read_diagnostics_cnt.hpp>
+#include <xitren/modbus/commands/read_identification.hpp>
+#include <xitren/modbus/commands/read_input_bits.hpp>
+#include <xitren/modbus/commands/read_input_registers.hpp>
+#include <xitren/modbus/commands/read_log.hpp>
+#include <xitren/modbus/commands/read_registers.hpp>
+#include <xitren/modbus/commands/set_max_log_lvl.hpp>
+#include <xitren/modbus/commands/write_bit.hpp>
+#include <xitren/modbus/commands/write_bits.hpp>
+#include <xitren/modbus/commands/write_register.hpp>
+#include <xitren/modbus/commands/write_registers.hpp>
+#include <xitren/modbus/slave.hpp>
 #include <xitren/circular_buffer.hpp>
 #include <xitren/comm/observer.hpp>
 #include <xitren/func/interval_event.hpp>
 #include <xitren/modbus/crc16ansi.hpp>
-#include <xitren/modbus/master/modbus_command_bits.hpp>
-#include <xitren/modbus/master/modbus_command_diagnostic.hpp>
-#include <xitren/modbus/master/modbus_command_regs.hpp>
-#include <xitren/modbus/master/modbus_command_regs_adv.hpp>
-#include <xitren/modbus/master/modbus_master.hpp>
 #include <xitren/modbus/packet.hpp>
-#include <xitren/modbus/slave/modbus_slave.hpp>
 
 #include <gtest/gtest.h>
 #include <spdlog/spdlog.h>
 
 using namespace xitren::modbus;
 using namespace xitren;
+using namespace xitren::modbus::commands;
 
 class bus_singleton : public comm::observable_dynamic<modbus_base::msg_type> {
     using data_type       = modbus_base::msg_type;
@@ -52,7 +65,7 @@ private:
     bus_singleton() = default;
 };
 
-class test_master : public modbus_master, public comm::observer<modbus_base::msg_type> {
+class test_master : public master, public comm::observer<modbus_base::msg_type> {
     using data_type       = modbus_base::msg_type;
     using observable_type = comm::observable_dynamic<data_type>;
     using observer_type   = comm::observer<data_type>;
@@ -89,7 +102,7 @@ private:
             hex << std::hex << std::setw(2) << static_cast<int>(*i) << std::dec << " ";
         }
         TRACE() << hex.str();
-        bus_singleton::bus_emit(*this, modbus_master::output());
+        bus_singleton::bus_emit(*this, master::output());
         return true;
     }
 };
@@ -113,7 +126,7 @@ arrays_match(std::array<T, Size> const& expected, std::array<T, Size1> const& ac
     return true;
 }
 
-using slave_type = modbus_slave<10, 10, 10, 10, 64>;
+using slave_type = slave<10, 10, 10, 10, 64>;
 
 class test_slave : public slave_type, public comm::observer<modbus_base::msg_type> {
     using data_type       = modbus_base::msg_type;
@@ -135,7 +148,7 @@ public:
         return true;
     }
 
-    explicit test_slave(std::uint8_t id) : modbus_slave(id) {}
+    explicit test_slave(std::uint8_t id) : slave(id) {}
 
     void
     data(void const*, data_type const& nd) override

@@ -1,15 +1,22 @@
+/*!
+_ _
+__ _(_) |_ _ _ ___ _ _
+\ \ / |  _| '_/ -_) ' \
+/_\_\_|\__|_| \___|_||_|
+* @date 15.02.2024
+*/
 #pragma once
 
 #include <xitren/modbus/modbus.hpp>
 #include <xitren/modbus/packet.hpp>
 
-namespace xitren::modbus {
+namespace xitren::modbus::functions {
 
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception
-read_fifo(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>& slave)
+read_fifo(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>& slave)
 {
-    using slave_type = modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
+    using slave_type = slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>;
     using return_type =
         typename slave_type::msg_type::template fields_in<header, request_fields_fifo, func::msb_t<std::uint16_t>>;
     //=========Check parameters=====================================================================
@@ -37,4 +44,4 @@ read_fifo(modbus_slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters,
     return exception::no_error;
 }
 
-}    // namespace xitren::modbus
+}    // namespace xitren::modbus::functions

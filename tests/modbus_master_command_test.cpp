@@ -1,21 +1,32 @@
+#include <xitren/modbus/master.hpp>
+#include <xitren/modbus/slave.hpp>
 #include <xitren/circular_buffer.hpp>
 #include <xitren/comm/observer.hpp>
 #include <xitren/modbus/crc16ansi.hpp>
-#include <xitren/modbus/master/modbus_command_bits.hpp>
-#include <xitren/modbus/master/modbus_command_diagnostic.hpp>
-#include <xitren/modbus/master/modbus_command_identification.hpp>
-#include <xitren/modbus/master/modbus_command_log.hpp>
-#include <xitren/modbus/master/modbus_command_regs.hpp>
-#include <xitren/modbus/master/modbus_command_regs_adv.hpp>
-#include <xitren/modbus/master/modbus_master.hpp>
+#include <xitren/modbus/commands/get_log_lvl.hpp>
+#include <xitren/modbus/commands/instant/read_diagnostics_cnt.hpp>
+#include <xitren/modbus/commands/instant/read_registers.hpp>
+#include <xitren/modbus/commands/instant/write_registers.hpp>
+#include <xitren/modbus/commands/read_bits.hpp>
+#include <xitren/modbus/commands/read_diagnostics_cnt.hpp>
+#include <xitren/modbus/commands/read_identification.hpp>
+#include <xitren/modbus/commands/read_input_bits.hpp>
+#include <xitren/modbus/commands/read_input_registers.hpp>
+#include <xitren/modbus/commands/read_log.hpp>
+#include <xitren/modbus/commands/read_registers.hpp>
+#include <xitren/modbus/commands/set_max_log_lvl.hpp>
+#include <xitren/modbus/commands/write_bit.hpp>
+#include <xitren/modbus/commands/write_bits.hpp>
+#include <xitren/modbus/commands/write_register.hpp>
+#include <xitren/modbus/commands/write_registers.hpp>
 #include <xitren/modbus/packet.hpp>
-#include <xitren/modbus/slave/modbus_slave.hpp>
 
 #include <gtest/gtest.h>
 
 using namespace xitren::modbus;
+using namespace xitren::modbus::commands;
 
-class test_master : public modbus_master {
+class test_master : public master {
 
     bool
     send(msg_type::array_type::iterator begin, msg_type::array_type::iterator end) noexcept override
@@ -71,7 +82,7 @@ arrays_match(std::array<T, Size> const& expected, std::array<T, Size1> const& ac
     return true;
 }
 
-using slave_type = modbus_slave<10, 10, 10, 10, 64>;
+using slave_type = slave<10, 10, 10, 10, 64>;
 
 class test_slave : public slave_type {
 
@@ -94,7 +105,7 @@ class test_slave : public slave_type {
     msg_type::array_type::iterator end_last_{nullptr};
 
 public:
-    test_slave() : modbus_slave(0x22) { exception_status_ = 0x55; }
+    test_slave() : slave(0x22) { exception_status_ = 0x55; }
 
     inline msg_type::array_type::iterator
     begin_last() noexcept
