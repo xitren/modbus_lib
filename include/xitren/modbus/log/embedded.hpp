@@ -204,6 +204,7 @@ public:
      * @brief Register a new logging sink.
      *
      * @param log
+     */
     static inline void
     register_sink(log_type& log_sink)
     {

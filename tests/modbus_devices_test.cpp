@@ -1,4 +1,6 @@
-#include <xitren/modbus/master.hpp>
+#include <xitren/circular_buffer.hpp>
+#include <xitren/comm/observer.hpp>
+#include <xitren/func/interval_event.hpp>
 #include <xitren/modbus/commands/get_log_lvl.hpp>
 #include <xitren/modbus/commands/instant/read_diagnostics_cnt.hpp>
 #include <xitren/modbus/commands/instant/read_registers.hpp>
@@ -15,15 +17,15 @@
 #include <xitren/modbus/commands/write_bits.hpp>
 #include <xitren/modbus/commands/write_register.hpp>
 #include <xitren/modbus/commands/write_registers.hpp>
-#include <xitren/modbus/slave.hpp>
-#include <xitren/circular_buffer.hpp>
-#include <xitren/comm/observer.hpp>
-#include <xitren/func/interval_event.hpp>
 #include <xitren/modbus/crc16ansi.hpp>
+#include <xitren/modbus/master.hpp>
 #include <xitren/modbus/packet.hpp>
+#include <xitren/modbus/slave.hpp>
 
 #include <gtest/gtest.h>
 #include <spdlog/spdlog.h>
+
+#include <atomic>
 
 using namespace xitren::modbus;
 using namespace xitren;
@@ -76,6 +78,7 @@ public:
     void
     data(void const*, data_type const& nd) override
     {
+        // std::cout << ">>mi ";
         receive(nd.storage().data(), nd.storage().data() + nd.size());
     }
 
@@ -138,12 +141,14 @@ public:
     send(msg_type::array_type::iterator begin, msg_type::array_type::iterator end) noexcept override
     {
         TRACE() << "<<<<<<<<<<<<<<Slave output msg ";
+        // std::cout << "<so ";
         std::ostringstream hex;
         hex << std::noshowbase << std::internal << std::setfill('0');
         for (auto i{begin}; i < end; i++) {
             hex << std::hex << std::setw(2) << static_cast<int>(*i) << std::dec << " ";
         }
         TRACE() << hex.str();
+        // std::cout << hex.str();
         bus_singleton::bus_emit(*this, slave_type::output());
         return true;
     }
@@ -156,7 +161,6 @@ public:
         if (!idle()) {
             TRACE() << ">>>>>>>>>>>>>>Slave not in IDLE " << nd.size();
         }
-        TRACE() << ">>>>>>>>>>>>>>Slave receive msg " << nd.size();
         receive(nd.storage().data(), nd.storage().data() + nd.size());
     }
 
@@ -174,7 +178,7 @@ public:
 };
 
 class bus_model : public func::interval_event {
-    static constexpr auto period{2ms};
+    static constexpr auto period{10ms};
     static constexpr auto waiting_period{1ms};
 
 public:
@@ -225,7 +229,7 @@ public:
             }
         });
         while (master_.state() != master_state::idle) {
-            std::this_thread::sleep_for(period * 2);
+            std::this_thread::sleep_for(waiting_period * 2);
         }
         answer.test_and_set();
         timer.join();
@@ -253,7 +257,6 @@ private:
 
 TEST(modbus_devices_test, modbus_scanning)
 {
-    GTEST_SKIP();
     using namespace xitren::modbus;
     using namespace std::chrono;
 
@@ -270,17 +273,21 @@ TEST(modbus_devices_test, modbus_scanning)
             fmt::print("{0:2x}:", id);
         }
         if (id != 0) {
-            bool data{true};
-            auto callback = [&](exception err, bool* start, [[maybe_unused]] bool* end) {
+            std::atomic<bool> data{false};
+            auto              callback = [&](exception err, bool* start, [[maybe_unused]] bool* end) {
                 if ((start == nullptr) || (err != exception::no_error)) {
+                    data.store(true, std::memory_order_release);
+                    data.notify_all();
                     return;
                 }
-                data = false;
                 fmt::print("{0:2x} ", id);
                 devices.push_back(id);
+                data.store(true, std::memory_order_release);
+                data.notify_all();
             };
             read_input_bits read{id, 0, 0x1, callback};
             bus.bus_send(read);
+            data.wait(false);
             if (data) {
                 fmt::print("-- ");
             }
@@ -291,43 +298,55 @@ TEST(modbus_devices_test, modbus_scanning)
     fmt::print("\t");
     fmt::print("Available devices: [{0:2x}] \t", fmt::join(devices, ", "));
     EXPECT_TRUE(devices.size() == 5);
-    for (auto& device : devices) {
-        EXPECT_TRUE((device == 0x02) || (device == 0x72) || (device == 0xae) || (device == 0xb2) || (device == 0xe2));
-    }
+    EXPECT_TRUE(std::find(devices.begin(), devices.end(), 0x02) != devices.end());
+    EXPECT_TRUE(std::find(devices.begin(), devices.end(), 0x72) != devices.end());
+    EXPECT_TRUE(std::find(devices.begin(), devices.end(), 0xae) != devices.end());
+    EXPECT_TRUE(std::find(devices.begin(), devices.end(), 0xb2) != devices.end());
+    EXPECT_TRUE(std::find(devices.begin(), devices.end(), 0xe2) != devices.end());
 }
 
 TEST(modbus_devices_test, modbus_write_read_registers)
 {
-    GTEST_SKIP();
     LEVEL(LOG_LEVEL_TRACE);
     bus_model bus;
     for (auto& id : std::array<std::uint8_t, 5>{0x02, 0x72, 0xae, 0xb2, 0xe2}) {
         std::array<std::uint16_t, 5> const values{0x02, 0x72, 0xae, 0xb2, 0xe2};
-        bool                               data{false};
+        std::atomic<bool>                  data{false};
         auto                               callback = [&](exception err) {
             if (err != exception::no_error) {
+                data.store(true, std::memory_order_release);
+                data.notify_all();
                 return;
             }
-            data = true;
+            data.store(true, std::memory_order_release);
+            data.notify_all();
         };
         class write_registers writer {
             id, 1, values, callback
         };
         bus.bus_send(writer);
+        std::this_thread::sleep_for(2ms);
+        data.wait(false);
         EXPECT_TRUE(data);
         std::array<std::uint16_t, 5> recv_values{};
         data               = false;
         auto callback_read = [&](exception err, std::uint16_t* begin, std::uint16_t* end) {
-            if ((err != exception::no_error) && ((end - begin) == static_cast<int>(recv_values.size()))) {
+            if ((begin == nullptr) || (err != exception::no_error)
+                || ((end - begin) != static_cast<int>(recv_values.size()))) {
+                data.store(true, std::memory_order_release);
+                data.notify_all();
                 return;
             }
             std::copy(begin, end, recv_values.begin());
-            data = true;
+            data.store(true, std::memory_order_release);
+            data.notify_all();
         };
         class read_registers reader {
             id, 1, recv_values.size(), callback_read
         };
         bus.bus_send(reader);
+        std::this_thread::sleep_for(2ms);
+        data.wait(false);
         EXPECT_TRUE(data);
         EXPECT_EQ(recv_values, values);
     }
@@ -335,36 +354,46 @@ TEST(modbus_devices_test, modbus_write_read_registers)
 
 TEST(modbus_devices_test, modbus_write_read_coils)
 {
-    GTEST_SKIP();
     LEVEL(LOG_LEVEL_TRACE);
     bus_model bus;
     for (auto& id : std::array<std::uint8_t, 5>{0x02, 0x72, 0xae, 0xb2, 0xe2}) {
-        std::array<bool, 5> const values{true, false, true, true, false};
-        volatile bool             data{false};
+        std::array<bool, 8> const values{true, false, true, true, false, false, false, false};
+        std::atomic<bool>         data{false};
         auto                      callback = [&](exception err) {
             if (err != exception::no_error) {
+                data.store(true, std::memory_order_release);
+                data.notify_all();
                 return;
             }
-            data = true;
+            data.store(true, std::memory_order_release);
+            data.notify_all();
         };
         class write_bits writer {
             id, 1, values, callback
         };
         bus.bus_send(writer);
+        std::this_thread::sleep_for(2ms);
+        data.wait(false);
         EXPECT_TRUE(data);
-        std::array<bool, 5> recv_values{};
+        std::array<bool, 8> recv_values{};
         data               = false;
         auto callback_read = [&](exception err, bool* begin, bool* end) {
-            if ((err != exception::no_error) && ((end - begin) == static_cast<int>(recv_values.size()))) {
+            if ((begin == nullptr) || (err != exception::no_error)
+                || ((end - begin) != static_cast<int>(recv_values.size()))) {
+                data.store(true, std::memory_order_release);
+                data.notify_all();
                 return;
             }
             std::copy(begin, end, recv_values.begin());
-            data = true;
+            data.store(true, std::memory_order_release);
+            data.notify_all();
         };
         class read_bits reader {
             id, 1, recv_values.size(), callback_read
         };
         bus.bus_send(reader);
+        std::this_thread::sleep_for(20ms);
+        data.wait(false);
         EXPECT_TRUE(data);
         EXPECT_EQ(recv_values, values);
     }

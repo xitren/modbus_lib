@@ -235,7 +235,7 @@ public:
             TRACE() << "wait -> proc_err";
             state_ = master_state::processing_error;
             if (command_ != nullptr) {
-                command_->no_answer();
+                ((command*)(command_))->no_answer();
                 command_ = nullptr;
             }
             break;
@@ -368,14 +368,11 @@ public:
     ~master() override = default;
 
 protected:
-    volatile master_state state_{
-        master_state::
-            idle};    // FIXME: See p.20 of
-                      // https://wiki.yandex-team.ru/lavka/dev/robolab/programmirovanie/01-koncepcii-i-instrukcii/c-embedded-guidelines/?revision=149426615
+    volatile master_state state_{master_state::idle};    // FIXME:
 
 private:
     request_data                ask_{};
-    command*                    command_{nullptr};
+    volatile command*           command_{nullptr};
     command::command_vault_type vault_{};
 
     inline bool
@@ -402,7 +399,7 @@ private:
         if (command_ == nullptr) [[unlikely]] {
             return exception::no_error;
         }
-        auto* cmd{command_};
+        auto* cmd{(command*)(command_)};
         command_ = nullptr;
         (*this) >> (*(cmd));
         if (cmd->error() == exception::bad_slave) {
