@@ -53,7 +53,7 @@ static constexpr std::uint16_t log_size = 1024;
 class embedded {
     using name_type     = std::string_view const;
     using ptr_item_type = char const*;
-    using log_type      = containers::circular_buffer<std::uint8_t, log_size>;
+    using log_type      = xitren::circular_buffer<std::uint8_t, log_size>;
     using temp_type     = std::array<char, 10>;
 
 public:

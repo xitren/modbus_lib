@@ -22,11 +22,24 @@ target_include_directories(
 
 message(STATUS "Adding library project \"${LIBRARY_NAME}\"")
 
-add_subdirectory(third_party/circular_buffer)
-add_subdirectory(third_party/crc)
-add_subdirectory(third_party/patterns)
+include(FetchContent)
+
+FetchContent_Declare(
+		circular_buffer
+		GIT_REPOSITORY https://github.com/xitren/circular_buffer.git
+		GIT_TAG        v1.0.1
+)
+FetchContent_MakeAvailable(circular_buffer)
+
+FetchContent_Declare(
+		patterns
+		GIT_REPOSITORY https://github.com/xitren/patterns.git
+		GIT_TAG        v1.0.6
+)
+FetchContent_MakeAvailable(patterns)
+
 target_link_libraries(${LIBRARY_NAME} INTERFACE ${GLOBAL_NAMESPACE}::circular_buffer
-		${GLOBAL_NAMESPACE}::crc_lib ${GLOBAL_NAMESPACE}::patterns_lib)
+		${GLOBAL_NAMESPACE}::patterns_lib)
 
 enable_testing()
 add_subdirectory(tests)

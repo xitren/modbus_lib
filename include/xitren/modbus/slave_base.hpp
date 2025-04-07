@@ -56,8 +56,8 @@ public:
     using error_type          = packet<header, error_fields, crc16ansi>;
     using function_type       = exception (*)(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>&);
     using function_table_type = std::array<function_type, max_function_id + 1>;
-    using fifo_type           = containers::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
-    using log_type            = containers::circular_buffer<std::uint8_t, xitren::modbus::log::log_size>;
+    using fifo_type           = xitren::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
+    using log_type            = xitren::circular_buffer<std::uint8_t, xitren::modbus::log::log_size>;
 
     constexpr explicit slave_base(std::uint8_t slave_id, inputs_type const& inputs, coils_type& coils,
                                   input_regs_type const& input_regs, holding_regs_type& holding_regs)

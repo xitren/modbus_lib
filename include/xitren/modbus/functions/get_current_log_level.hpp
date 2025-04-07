@@ -35,7 +35,7 @@ get_current_log_level(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegis
     auto pack = slave.input().template deserialize_no_check<header, std::uint8_t, std::uint8_t, crc16ansi>();
     //=========Request processing===================================================================
     auto        log_mode = GET_LEVEL();
-    return_type data{slave.id(), pack.header->function_code, static_cast<std::uint8_t>(log_mode), 0, nullptr};
+    return_type data{{slave.id(), pack.header->function_code}, static_cast<std::uint8_t>(log_mode), 0, nullptr};
     slave.output().template serialize<header, std::uint8_t, std::uint8_t, crc16ansi>(data);
     return exception::no_error;
 }

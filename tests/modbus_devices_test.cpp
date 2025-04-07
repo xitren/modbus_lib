@@ -83,7 +83,7 @@ public:
     }
 
     bool
-    timer_start(std::size_t microseconds) override
+    timer_start(std::size_t) override
     {
         return true;
     }

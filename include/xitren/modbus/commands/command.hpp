@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../../../third_party/circular_buffer/include/xitren/circular_buffer.hpp"
-#include "../modbus.hpp"
+#include <xitren/circular_buffer.hpp>
+#include <xitren/modbus/modbus.hpp>
 
 #include <functional>
 #include <memory>
@@ -25,11 +25,11 @@ using callback_regs_type           = std::function<void(exception, std::uint16_t
 
 class command {
     template <typename T, size_t Size>
-    friend containers::circular_buffer<T, Size>&
-    operator<<(containers::circular_buffer<T, Size>&, command const&);
+    friend xitren::circular_buffer<T, Size>&
+    operator<<(xitren::circular_buffer<T, Size>&, command const&);
     template <typename T, size_t Size>
-    friend containers::circular_buffer<T, Size>&
-    operator>>(containers::circular_buffer<T, Size>&, command&);
+    friend xitren::circular_buffer<T, Size>&
+    operator>>(xitren::circular_buffer<T, Size>&, command&);
 
 protected:
     using iterator       = std::uint8_t*;
@@ -52,8 +52,7 @@ public:
      * @return modbus_command* a pointer to the cloned command
      */
     virtual command*
-    clone(command_vault_type&) const noexcept
-        = 0;
+    clone(command_vault_type&) const noexcept = 0;
 
     /**
      * @brief clones the command
@@ -69,8 +68,7 @@ public:
      * @return iterator an iterator to the beginning of the command
      */
     virtual inline iterator
-    begin() noexcept
-        = 0;
+    begin() noexcept = 0;
 
     /**
      * @brief returns an iterator to the beginning of the command
@@ -78,8 +76,7 @@ public:
      * @return const_iterator an iterator to the beginning of the command
      */
     virtual inline const_iterator
-    begin() const noexcept
-        = 0;
+    begin() const noexcept = 0;
 
     /**
      * @brief returns an iterator to the end of the command
@@ -87,8 +84,7 @@ public:
      * @return iterator an iterator to the end of the command
      */
     virtual inline iterator
-    end() noexcept
-        = 0;
+    end() noexcept = 0;
 
     /**
      * @brief returns an iterator to the end of the command
@@ -96,8 +92,7 @@ public:
      * @return const_iterator an iterator to the end of the command
      */
     virtual inline const_iterator
-    end() const noexcept
-        = 0;
+    end() const noexcept = 0;
 
     /**
      * @brief returns the size of the command
@@ -105,8 +100,7 @@ public:
      * @return std::size_t the size of the command
      */
     virtual inline std::size_t
-    size() noexcept
-        = 0;
+    size() noexcept = 0;
 
     /**
      * @brief returns the size of the command
@@ -114,8 +108,7 @@ public:
      * @return std::size_t the size of the command
      */
     virtual inline std::size_t
-    size() const noexcept
-        = 0;
+    size() const noexcept = 0;
 
     /**
      * @brief receives a modbus message
@@ -246,11 +239,11 @@ private:
  *
  * @param buffer the circular buffer to shift
  * @param in_data the data to shift into the circular buffer
- * @return containers::circular_buffer<T, Size>& a reference to the shifted circular buffer
+ * @return xitren::circular_buffer<T, Size>& a reference to the shifted circular buffer
  */
 template <typename T, size_t Size>
-containers::circular_buffer<T, Size>&
-operator<<(containers::circular_buffer<T, Size>& buffer, command const& in_data)
+xitren::circular_buffer<T, Size>&
+operator<<(xitren::circular_buffer<T, Size>& buffer, command const& in_data)
 {
     auto const begin{in_data.begin()};
     for (auto i{begin}; i != (begin + in_data.size()); i++) {
@@ -264,11 +257,11 @@ operator<<(containers::circular_buffer<T, Size>& buffer, command const& in_data)
  *
  * @param buffer the circular buffer to shift
  * @param out_data the data to shift out of the circular buffer
- * @return containers::circular_buffer<T, Size>& a reference to the shifted circular buffer
+ * @return xitren::circular_buffer<T, Size>& a reference to the shifted circular buffer
  */
 template <typename T, size_t Size>
-containers::circular_buffer<T, Size>&
-operator>>(containers::circular_buffer<T, Size>& buffer, command& out_data)
+xitren::circular_buffer<T, Size>&
+operator>>(xitren::circular_buffer<T, Size>& buffer, command& out_data)
 {
     command::msg_type buff{};
     std::size_t       i{0};

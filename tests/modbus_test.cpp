@@ -68,7 +68,7 @@ private:
 using custom_slave_bits_type      = std::array<bool, 10>;
 using custom_slave_registers_type = std::array<std::uint16_t, 10>;
 using custom_slave_type = slave_base<custom_slave_bits_type, custom_slave_bits_type, custom_slave_registers_type,
-                                            custom_slave_registers_type, 64>;
+                                     custom_slave_registers_type, 64>;
 
 class test_custom_slave : public custom_slave_type, public observer_type, public observable_type {
 
@@ -147,7 +147,7 @@ public:
     }
 
     bool
-    timer_start(std::size_t microseconds) override
+    timer_start(std::size_t) override
     {
         return true;
     }

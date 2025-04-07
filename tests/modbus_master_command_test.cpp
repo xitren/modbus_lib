@@ -1,8 +1,5 @@
-#include <xitren/modbus/master.hpp>
-#include <xitren/modbus/slave.hpp>
 #include <xitren/circular_buffer.hpp>
 #include <xitren/comm/observer.hpp>
-#include <xitren/modbus/crc16ansi.hpp>
 #include <xitren/modbus/commands/get_log_lvl.hpp>
 #include <xitren/modbus/commands/instant/read_diagnostics_cnt.hpp>
 #include <xitren/modbus/commands/instant/read_registers.hpp>
@@ -19,7 +16,10 @@
 #include <xitren/modbus/commands/write_bits.hpp>
 #include <xitren/modbus/commands/write_register.hpp>
 #include <xitren/modbus/commands/write_registers.hpp>
+#include <xitren/modbus/crc16ansi.hpp>
+#include <xitren/modbus/master.hpp>
 #include <xitren/modbus/packet.hpp>
+#include <xitren/modbus/slave.hpp>
 
 #include <gtest/gtest.h>
 
@@ -51,7 +51,7 @@ public:
     }
 
     bool
-    timer_start(std::size_t microseconds) override
+    timer_start(std::size_t) override
     {
         return true;
     }

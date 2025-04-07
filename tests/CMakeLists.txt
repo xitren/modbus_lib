@@ -25,7 +25,7 @@ foreach (file ${TESTS})
     add_executable(${tgt} ${file})
     target_compile_features(${tgt} PUBLIC cxx_std_20)
     if (NOT ${CMAKE_HOST_SYSTEM_NAME} MATCHES "Windows")
-        target_compile_options(${tgt} PRIVATE -Wall -Wextra -Wpedantic -Wc++20-compat -Wno-format-security
+        target_compile_options(${tgt} PRIVATE -Wall -Wextra -Wpedantic -Wno-format-security
                 -Woverloaded-virtual -Wsuggest-override)
     endif ()
     target_link_libraries(${tgt} PRIVATE ${LIBRARY_NAME} spdlog::spdlog_header_only GTest::gtest GTest::GTest -pthread)
