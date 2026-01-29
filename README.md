@@ -1,6 +1,6 @@
 # modbus_lib
 
-[![Coverage](https://github.com/xitren/modbus_lib/actions/workflows/cmake-multi-platform.yml/badge.svg?branch=main)](https://github.com/xitren/modbus_lib/actions/workflows/cmake-multi-platform.yml)
+[![Coverage](https://github.com/xitren/modbus_lib/actions/workflows/cmake-multi-platform.yml/badge.svg?branch=main)](https://github.com/xitren/modbus_lib/actions/workflows/cmake-multi-platform.yml) [![Coverage %](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/xitren/modbus_lib/gh-pages/badges/coverage.json)](https://github.com/xitren/modbus_lib/actions/workflows/cmake-multi-platform.yml)
 
 ## Build and test in Ubuntu devcontainer
 

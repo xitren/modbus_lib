@@ -68,6 +68,8 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v3
       with:
@@ -92,16 +94,57 @@ jobs:
       run: ctest --test-dir build-coverage
 
     - name: Coverage report
-      run: >
-        gcovr -r .
-        --filter "include/xitren/modbus/commands/.*"
-        --filter "include/xitren/modbus/functions/.*"
-        --filter "include/xitren/modbus/log/embedded.hpp"
-        --filter "include/xitren/modbus/packet.hpp"
-        --filter "include/xitren/modbus/crc16ansi.hpp"
-        --exclude "build-coverage/_deps/.*"
-        --exclude "tests/.*"
-        --exclude "build-coverage/CMakeFiles/.*"
-        --print-summary
-        --fail-under-line 95
-        --fail-under-branch 80
+      run: |
+        gcovr -r . \
+          --filter "include/xitren/modbus/commands/.*" \
+          --filter "include/xitren/modbus/functions/.*" \
+          --filter "include/xitren/modbus/log/embedded.hpp" \
+          --filter "include/xitren/modbus/packet.hpp" \
+          --filter "include/xitren/modbus/crc16ansi.hpp" \
+          --exclude "build-coverage/_deps/.*" \
+          --exclude "tests/.*" \
+          --exclude "build-coverage/CMakeFiles/.*" \
+          --print-summary \
+          --fail-under-line 95 \
+          --fail-under-branch 90 | tee build-coverage/coverage-summary.txt
+
+    - name: Create coverage badge
+      run: |
+        python3 - <<'PY'
+        import json
+        import pathlib
+        import re
+
+        summary = pathlib.Path("build-coverage/coverage-summary.txt").read_text()
+        match = re.search(r"lines:\s+([0-9.]+)%", summary)
+        if not match:
+            raise SystemExit("Line coverage not found in summary.")
+        value = match.group(1)
+        pct = float(value)
+        if pct >= 95:
+            color = "brightgreen"
+        elif pct >= 90:
+            color = "green"
+        elif pct >= 80:
+            color = "yellowgreen"
+        elif pct >= 70:
+            color = "yellow"
+        elif pct >= 60:
+            color = "orange"
+        else:
+            color = "red"
+
+        badge = {"schemaVersion": 1, "label": "coverage", "message": f"{value}%", "color": color}
+        out_dir = pathlib.Path("build-coverage/badges")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "coverage.json").write_text(json.dumps(badge))
+        PY
+
+    - name: Deploy coverage badge
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: build-coverage/badges
+        publish_branch: gh-pages
+        destination_dir: badges
