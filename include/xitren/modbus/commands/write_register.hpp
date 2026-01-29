@@ -12,15 +12,10 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A class representing a Modbus write single register request
+ * @brief Command to write a single holding register (0x06).
  *
- * This class represents a Modbus write single register request, which is used to write a single 16-bit register
- * on a Modbus device. It contains the slave device address, the register address to write to, and the value to
- * write to the register.
- *
- * The write single register request is sent to the Modbus device, and the response is handled by the
- * receive() method. If the response indicates an error, the error is passed to the user-defined callback
- * function.
+ * The request writes a 16-bit value at a given address and expects an echo
+ * response. The callback reports the final status.
  */
 class write_register : public command {
 public:

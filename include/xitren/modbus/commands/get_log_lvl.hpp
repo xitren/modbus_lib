@@ -12,27 +12,32 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A Modbus Read Log request
+ * @brief Command to query the current log level from a slave.
  *
- * @param slave The Modbus slave device to send the request to
- * @param callback The function to call when the response is received
+ * This is a custom function (0x43) used by the library to retrieve the
+ * embedded logging level. The response contains a single byte payload.
+ *
+ * @param slave The Modbus slave device to send the request to.
+ * @param callback The function to call when the response is received.
  */
 class get_log_lvl : public command {
 public:
     /**
-     * @brief Constructs a new Get Log Level Modbus command
+     * @brief Constructs a new Get Log Level command.
      *
-     * @param slave The Modbus slave device to send the request to
-     * @param callback The function to call when the response is received
+     * @param slave The Modbus slave device to send the request to.
+     * @param callback The function to call when the response is received.
      */
     get_log_lvl(std::uint8_t slave, types::callback_function_type callback) noexcept
         : command{slave, 0}, callback_{std::move(callback)}
     {
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, std::uint8_t, std::uint8_t, crc16ansi>(
                 {{slave, static_cast<uint8_t>(function::get_current_log_level)}, {}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_STOP
     }
 
     /**
@@ -159,8 +164,10 @@ public:
         auto [pack, err] = input_msg<header, std::uint8_t, std::uint8_t>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
+        // GCOVR_EXCL_START
         if (pack.size > modbus_base::max_read_registers) [[unlikely]]
             return exception::illegal_data_value;
+        // GCOVR_EXCL_STOP
         callback_(exception::no_error);
         return exception::no_error;
     }

@@ -16,6 +16,17 @@ __ _(_) |_ _ _ ___ _ _
 
 namespace xitren::modbus {
 
+/**
+ * @brief Fixed-layout Modbus packet with CRC.
+ *
+ * The `packet` union provides a packed view of header/fields/CRC and an
+ * equivalent byte array. It is used for fixed-size requests and responses.
+ * For variable-length payloads, use `packet_accessor`.
+ *
+ * @tparam Header Packed header type.
+ * @tparam Fields Packed fields type.
+ * @tparam Crc CRC implementation (see `crc::crc_concept`).
+ */
 template <typename Header, typename Fields, crc::crc_concept Crc>
 union packet {
     using size_type                   = std::size_t;
@@ -52,6 +63,8 @@ public:
     /**
      * Constructs a packet from an array of bytes.
      *
+     * The byte array is moved into the internal storage.
+     *
      * @param array The array of bytes to construct the packet from.
      */
     explicit constexpr packet(std::array<uint8_t, length> const&& array) noexcept : pure_{std::move(array)} {}
@@ -73,7 +86,7 @@ public:
     constexpr packet() noexcept : pure_{} {}
 
     /**
-     * Constructs a packet from a header and fields.
+     * Constructs a packet from a header and fields and computes CRC.
      *
      * @param header The packet header.
      * @param fields The packet fields.
@@ -190,7 +203,7 @@ public:
      * Deserializes a packet from an array of bytes.
      *
      * @param array The array of bytes to deserialize the packet from.
-     * @return A tuple containing the packet validity, header, and fields.
+     * @return Tuple containing validity flag, header, and fields.
      */
     template <std::size_t Size>
     static constexpr std::tuple<bool, Header, Fields>
@@ -204,6 +217,8 @@ public:
 
     /**
      * Deserializes a packet from an input iterator.
+     *
+     * This method assumes the data length is at least `length`.
      *
      * @param begin The input iterator pointing to the first byte of the packet.
      * @return The deserialized packet.
@@ -236,6 +251,15 @@ private:
     array_type  pure_;
 };
 
+/**
+ * @brief Variable-length Modbus packet accessor.
+ *
+ * `packet_accessor` owns a byte buffer and allows serialization/deserialization
+ * of packets with a variable-length payload (e.g. read registers response).
+ *
+ * The accessor stores the current size of valid data and provides typed
+ * deserialization views without copying the payload.
+ */
 template <std::size_t Max>
 class packet_accessor {
     using size_type = std::size_t;
@@ -329,13 +353,9 @@ public:
     };
 
     /**
-     * Deserializes packet fields without checking the CRC.
+     * Deserializes packet fields without CRC validation.
      *
-     * @tparam Header The packet header type.
-     * @tparam Fields The packet fields type.
-     * @tparam Type The packet data type.
-     * @tparam Crc The CRC type.
-     * @return A structure containing the packet fields.
+     * Useful when the CRC has already been validated by the transport.
      */
     template <typename Header, typename Fields, typename Type, crc::crc_concept Crc>
     auto
@@ -353,13 +373,10 @@ public:
     }
 
     /**
-     * Deserializes packet fields.
+     * Deserializes packet fields with CRC validation.
      *
-     * @tparam Header The packet header type.
-     * @tparam Fields The packet fields type.
-     * @tparam Type The packet data type.
-     * @tparam Crc The CRC type.
-     * @return A structure containing the packet fields.
+     * The returned structure contains a validity flag and a pointer to
+     * the payload data.
      */
     template <typename Header, typename Fields, typename Type, crc::crc_concept Crc>
     constexpr auto
@@ -384,13 +401,10 @@ public:
     }
 
     /**
-     * Serializes packet fields.
+     * Serializes packet fields into the internal buffer.
      *
-     * @tparam Header The packet header type.
-     * @tparam Fields The packet fields type.
-     * @tparam Type The packet data type.
-     * @tparam Crc The CRC type.
-     * @param input The packet fields to serialize.
+     * This writes header, fields, optional payload, and CRC, then updates size.
+     *
      * @return `true` if the serialization was successful, `false` otherwise.
      */
     template <typename Header, typename Fields, typename Type, crc::crc_concept Crc>

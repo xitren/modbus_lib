@@ -65,3 +65,43 @@ jobs:
       # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest --build-config ${{ matrix.build_type }}
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+
+    - name: Install coverage dependencies
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcovr ninja-build
+
+    - name: Configure coverage build
+      run: >
+        cmake -B build-coverage -G Ninja
+        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_CXX_FLAGS="--coverage -O0 -g"
+        -DCMAKE_C_FLAGS="--coverage -O0 -g"
+        -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+        -S ${{ github.workspace }}
+
+    - name: Build coverage
+      run: cmake --build build-coverage
+
+    - name: Test coverage
+      run: ctest --test-dir build-coverage
+
+    - name: Coverage report
+      run: >
+        gcovr -r .
+        --filter "include/xitren/modbus/commands/.*"
+        --filter "include/xitren/modbus/functions/.*"
+        --filter "include/xitren/modbus/log/embedded.hpp"
+        --filter "include/xitren/modbus/packet.hpp"
+        --filter "include/xitren/modbus/crc16ansi.hpp"
+        --exclude "build-coverage/_deps/.*"
+        --exclude "tests/.*"
+        --exclude "build-coverage/CMakeFiles/.*"
+        --print-summary
+        --fail-under-line 95
+        --fail-under-branch 90

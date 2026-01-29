@@ -13,17 +13,19 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief This function is used to process the request of the set_max_log_level.
+ * @brief Handle custom Set Max Log Level request (0x42).
  *
- * @tparam TInputs The input data type.
- * @tparam TCoils The coil data type.
- * @tparam TInputRegisters The input register data type.
- * @tparam THoldingRegisters The holding register data type.
- * @tparam Fifo The FIFO size.
- * @param slave The reference to the Modbus slave object.
- * @param pack The input packet of the request.
+ * The request payload contains the desired log level as a single byte.
+ * The handler validates the level against the supported logging range and
+ * echoes the accepted value back to the requester.
  *
- * @return An exception object indicating the result of the operation.
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception

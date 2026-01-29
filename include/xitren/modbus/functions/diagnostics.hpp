@@ -13,17 +13,26 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief This function is used to process the request of the diagnostics.
+ * @brief Handle Diagnostics (0x08) sub-functions.
  *
- * @tparam TInputs The input data type.
- * @tparam TCoils The coil data type.
- * @tparam TInputRegisters The input register data type.
- * @tparam THoldingRegisters The holding register data type.
- * @tparam Fifo The FIFO size.
- * @param slave The reference to the Modbus slave object.
- * @param pack The input packet of the request.
+ * Supported sub-functions include:
+ * - Return Query Data
+ * - Restart Communication Option
+ * - Return Diagnostic Register
+ * - Force Listen Only Mode
+ * - Clear Counters
+ * - Return various bus/server counters
  *
- * @return An exception object indicating the result of the operation.
+ * The handler updates diagnostic state and counters on the slave and formats
+ * the appropriate response payload based on the sub-function.
+ *
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception

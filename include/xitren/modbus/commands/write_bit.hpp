@@ -12,7 +12,10 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A class for writing a single coil.
+ * @brief Command to write a single coil (0x05).
+ *
+ * The request writes ON/OFF to a single coil address and expects the device to
+ * echo the request. The callback is invoked with the operation status.
  *
  * @par Example
  * @code{.cpp}
@@ -26,8 +29,6 @@ namespace xitren::modbus::commands {
  * });
  * client.run_async(cmd);
  * @endcode
- *
- * @tparam Size The size of the coil.
  */
 class write_bit : public command {
 public:

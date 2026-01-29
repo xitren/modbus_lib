@@ -30,6 +30,21 @@ __ _(_) |_ _ _ ___ _ _
 
 namespace xitren::modbus {
 
+/**
+ * @brief Base Modbus slave implementation with pluggable storage.
+ *
+ * `slave_base` implements the Modbus state machine and core request handling.
+ * It is parameterized by container types for inputs/coils/registers, allowing
+ * it to integrate with user-managed storage or custom containers.
+ *
+ * Responsibilities:
+ * - Validates incoming requests and dispatches to function handlers.
+ * - Tracks diagnostics counters and error state.
+ * - Manages response formatting and optional silent mode.
+ *
+ * Users can override identification hooks and change callbacks to react to
+ * writes or provide device metadata.
+ */
 template <modbus_slave_container TInputs, modbus_slave_container TCoils, modbus_slave_container TInputRegisters,
           modbus_slave_container THoldingRegisters, std::uint16_t Fifo>
 class slave_base : public modbus_base {
@@ -59,6 +74,15 @@ public:
     using fifo_type           = xitren::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
     using log_type            = xitren::circular_buffer<std::uint8_t, xitren::modbus::log::log_size>;
 
+    /**
+     * @brief Construct a slave bound to external storage.
+     *
+     * @param slave_id Device address on the Modbus network.
+     * @param inputs Reference to discrete input storage (read-only).
+     * @param coils Reference to coil storage (read/write).
+     * @param input_regs Reference to input register storage (read-only).
+     * @param holding_regs Reference to holding register storage (read/write).
+     */
     constexpr explicit slave_base(std::uint8_t slave_id, inputs_type const& inputs, coils_type& coils,
                                   input_regs_type const& input_regs, holding_regs_type& holding_regs)
         : slave_id_{slave_id},
@@ -82,18 +106,33 @@ public:
         register_function(function::read_device_identification, &functions::identification);
     }
 
+    /**
+     * @brief Registers a function handler.
+     *
+     * A handler is a function that processes a request and fills `output()`.
+     */
     void
     register_function(function const id, function_type const func) noexcept
     {
         defined_functions_table_[static_cast<std::uint8_t>(id)] = func;
     }
 
+    /**
+     * @brief Unregisters a function handler.
+     *
+     * Requests for that function will result in `illegal_function`.
+     */
     void
     unregister_function(function const id) noexcept
     {
         defined_functions_table_[static_cast<std::uint8_t>(id)] = nullptr;
     }
 
+    /**
+     * @brief Called when a new ADU is received.
+     *
+     * Transitions the slave into request validation state.
+     */
     exception
     received() noexcept override
     {
@@ -109,18 +148,31 @@ public:
         return exception::no_error;
     }
 
+    /**
+     * @brief Returns vendor name for device identification.
+     *
+     * Override to provide device-specific identification strings.
+     */
     constexpr virtual std::string_view
     vendor_name() noexcept
     {
         return "Robolavka";
     }
 
+    /**
+     * @brief Returns product code for device identification.
+     */
     constexpr virtual std::string_view
     product_code() noexcept
     {
         return "General Modbus device";
     }
 
+    /**
+     * @brief Returns firmware revision string for identification.
+     *
+     * The default combines version macros and build metadata.
+     */
     constexpr virtual std::string_view
     major_minor_revision() noexcept
     {
@@ -128,28 +180,49 @@ public:
             BUILD_NUMBER) " " STRINGIFY(COMMIT_ID);
     }
 
+    /**
+     * @brief Hook called after a coil is modified.
+     *
+     * @param index Coil index.
+     * @param value New coil value.
+     */
     virtual void
     changed_coil(std::size_t, bool) noexcept
     {}
 
+    /**
+     * @brief Hook called after a holding register is modified.
+     *
+     * @param index Register index.
+     * @param value New register value.
+     */
     virtual void
     changed_holding(std::size_t, std::uint16_t) noexcept
     {}
 
+    /**
+     * @brief Hook for diagnostic "restart communication" sub-function.
+     *
+     * Override to reinitialize transport or application state as needed.
+     */
     virtual void
     restart_comm() noexcept
     {}
 
+    /**
+     * @brief Processes the current slave state.
+     *
+     * Validates requests, dispatches the handler, and formats responses.
+     */
     exception
     processing() noexcept override
     {
-        static header head{};
 
         switch (state_) {
         case slave_state::checking_request:
-            head = func::data<header>::deserialize(input_msg_.storage().begin());
+            current_header_ = func::data<header>::deserialize(input_msg_.storage().begin());
 
-            if ((head.slave_id != slave_id_) && (head.slave_id != broadcast_address)) [[likely]] {
+            if ((current_header_.slave_id != slave_id_) && (current_header_.slave_id != broadcast_address)) [[likely]] {
                 TRACE() << "check -> idle";
                 state_ = slave_state::idle;
                 input_msg_.size(0);
@@ -159,7 +232,8 @@ public:
 
             increment_counter(diagnostics_sub_function::return_bus_message_count);
 
-            if ((head.function_code >= max_function_id) || (defined_functions_table_[head.function_code] == nullptr))
+            if ((current_header_.function_code >= max_function_id)
+                || (defined_functions_table_[current_header_.function_code] == nullptr))
                 [[unlikely]] {
                 TRACE() << "check -> err_reply";
                 state_ = slave_state::formatting_error_reply;
@@ -171,7 +245,8 @@ public:
             state_ = slave_state::processing_action;
             break;
         case slave_state::processing_action:
-            if (exception::no_error == (error_ = defined_functions_table_[head.function_code](*this))) [[likely]] {
+            if (exception::no_error == (error_ = defined_functions_table_[current_header_.function_code](*this)))
+                [[likely]] {
                 TRACE() << "proc -> reply";
                 state_ = slave_state::formatting_reply;
             } else [[unlikely]] {
@@ -179,7 +254,7 @@ public:
                 TRACE() << "proc -> err_reply";
                 state_ = slave_state::formatting_error_reply;
             }
-            if (head.slave_id == broadcast_address) [[unlikely]] {
+            if (current_header_.slave_id == broadcast_address) [[unlikely]] {
                 increment_counter(diagnostics_sub_function::return_server_no_response_count);
                 state_ = slave_state::idle;
             }
@@ -195,7 +270,10 @@ public:
             break;
         case slave_state::formatting_error_reply:
             output_msg_.template serialize<header, error_fields, uint8_t, crc16ansi>(
-                {{slave_id_, static_cast<uint8_t>(head.function_code | error_reply_mask)}, {error_}, 0, nullptr});
+                {{slave_id_, static_cast<uint8_t>(current_header_.function_code | error_reply_mask)},
+                 {error_},
+                 0,
+                 nullptr});
             if (!silent_) {
                 if (!send(output_msg_.storage().begin(), output_msg_.storage().begin() + output_msg_.size()))
                     [[unlikely]] {
@@ -219,60 +297,90 @@ public:
         return exception::no_error;
     }
 
+    /**
+     * @brief Returns true when the slave is ready for a new request.
+     */
     inline bool
     idle() noexcept override
     {
         return slave_state::idle == state_;
     }
 
+    /**
+     * @brief Returns the slave ID.
+     */
     inline std::uint8_t
     id() noexcept
     {
         return static_cast<std::uint8_t>(slave_id_);
     }
 
+    /**
+     * @brief Returns the slave ID.
+     */
     [[nodiscard]] inline constexpr std::uint8_t
     id() const noexcept
     {
         return static_cast<std::uint8_t>(slave_id_);
     }
 
+    /**
+     * @brief Returns read-only input discretes.
+     */
     [[nodiscard]] inline constexpr inputs_type const&
     inputs() const noexcept
     {
         return inputs_;
     }
 
+    /**
+     * @brief Returns coil storage (read/write).
+     */
     inline coils_type&
     coils() noexcept
     {
         return coils_;
     }
 
+    /**
+     * @brief Returns coil storage (read/write).
+     */
     [[nodiscard]] inline constexpr coils_type&
     coils() const noexcept
     {
         return coils_;
     }
 
+    /**
+     * @brief Returns read-only input register storage.
+     */
     [[nodiscard]] inline constexpr input_regs_type const&
     input_registers() const noexcept
     {
         return input_registers_;
     }
 
+    /**
+     * @brief Returns holding register storage (read/write).
+     */
     inline holding_regs_type&
     holding_registers() noexcept
     {
         return holding_registers_;
     }
 
+    /**
+     * @brief Returns holding register storage (read/write).
+     */
     [[nodiscard]] inline constexpr holding_regs_type&
     holding_registers() const noexcept
     {
         return holding_registers_;
     }
 
+    /**
+     * @brief Resets the slave state machine and error status.
+     */
     inline void
     reset() noexcept override
     {
@@ -281,54 +389,90 @@ public:
         error_ = exception::no_error;
     }
 
+    /**
+     * @brief Returns current slave state.
+     */
     inline slave_state
     state() noexcept
     {
         return state_;
     }
 
+    /**
+     * @brief Returns current slave state.
+     */
     [[nodiscard]] inline constexpr slave_state
     state() const noexcept
     {
         return state_;
     }
 
+    /**
+     * @brief Returns whether responses are suppressed.
+     *
+     * In silent mode the slave processes requests but does not send replies.
+     */
     inline bool
     silent() noexcept
     {
         return silent_;
     }
 
+    /**
+     * @brief Returns whether responses are suppressed.
+     */
     [[nodiscard]] inline constexpr bool
     silent() const noexcept
     {
         return silent_;
     }
 
+    /**
+     * @brief Enables or disables silent mode.
+     *
+     * @param val When true, the slave will not reply to requests.
+     */
     inline void
     silent(bool val) noexcept
     {
         silent_ = val;
     }
 
+    /**
+     * @brief Returns the internal log buffer.
+     */
     inline log_type&
     log() noexcept
     {
         return log_;
     }
 
+    /**
+     * @brief Returns the internal log buffer.
+     */
     [[nodiscard]] inline constexpr log_type const&
     log() const noexcept
     {
         return log_;
     }
 
+    /**
+     * @brief Validates an address range against storage size.
+     *
+     * @param addr Starting address.
+     * @param cnt Number of elements requested.
+     * @param size Total available elements.
+     * @return True if the range is valid.
+     */
     static bool
     address_valid(std::uint16_t addr, std::uint16_t cnt, std::uint16_t size)
     {
         return ((std::numeric_limits<std::uint16_t>::max() - addr) >= cnt) && ((addr + cnt) <= size);
     }
 
+    /**
+     * @brief Appends a range of bytes into the log buffer.
+     */
     template <std::ranges::common_range Array>
     slave_base&
     to_log(Array const& in_data)
@@ -343,6 +487,7 @@ private:
     std::uint8_t const     slave_id_;
     bool                   silent_{};
     volatile slave_state   state_ = slave_state::idle;
+    header                 current_header_{};
     inputs_type const&     inputs_;
     coils_type&            coils_;
     input_regs_type const& input_registers_;

@@ -1,0 +1,53 @@
+{
+    "name": "Simplified env",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "options": [
+            "--network",
+            "host"
+        ]
+    },
+    "workspaceFolder": "/home",
+    "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/home",
+    "runArgs": [
+        "--name",
+        "dev_patterns",
+        "--net",
+        "host"
+    ],
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "C_Cpp.intelliSenseEngine": "disabled",
+                "[cpp]": {
+                    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+                },
+                "cmake.configureArgs": [
+                    "-DBUILD_TESTS=ON"
+                ],
+                "clangd.arguments": [
+                    "-background-index",
+                    "-limit-results=0"
+                ],
+                "editor.rulers": [
+                    80,
+                    100
+                ]
+            },
+            "extensions": [
+                "jeff-hykin.better-c-syntax",
+                "jeff-hykin.better-cpp-syntax",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "twxs.cmake",
+                "josetr.cmake-language-support-vscode",
+                "ms-vscode.cmake-tools",
+                "cschlosser.doxdocgen",
+                "eamodio.gitlens",
+                "ms-vscode.hexeditor",
+                "davidanson.vscode-markdownlint",
+                "forbeslindesay.forbeslindesay-taskrunner",
+                "ms-vscode.cpptools"
+            ]
+        }
+    }
+}

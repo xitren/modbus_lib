@@ -12,7 +12,7 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A class representing a Modbus write multiple registers request
+ * @brief Command to write multiple holding registers (0x10).
  *
  * This class represents a Modbus write multiple registers request, which is used to write a series of 16-bit registers
  * on a Modbus device. It contains the slave device address, the first register address to write to, and the value to
@@ -22,7 +22,6 @@ namespace xitren::modbus::commands {
  * receive() method. If the response indicates an error, the error is passed to the user-defined callback
  * function.
  *
- * @tparam Size the size of the array of values to write
  */
 class write_registers : public command {
 public:
@@ -64,12 +63,13 @@ public:
     value(std::array<std::uint16_t, Size> const& vals) noexcept
     {
         static_assert(Size < modbus_base::max_write_registers, "Too much to write!");
-        static std::array<func::msb_t<std::uint16_t>, Size> data_formatted;
+        std::array<func::msb_t<std::uint16_t>, Size> data_formatted{};
         auto                                                it1{vals.begin()};
         auto                                                it2{data_formatted.begin()};
         for (; (it1 != vals.end()) && (it2 != data_formatted.end()); it1++, it2++) {
             (*it2) = (*it1);
         }
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, request_fields_wr_single, func::msb_t<std::uint16_t>, crc16ansi>(
                 {{slave_, static_cast<std::uint8_t>(function::write_multiple_registers)},
                  {address_, static_cast<std::uint16_t>(vals.size()), static_cast<std::uint8_t>(Size * 2)},
@@ -78,6 +78,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_STOP
     }
 
     /**

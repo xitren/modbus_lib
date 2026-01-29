@@ -17,8 +17,18 @@ __ _(_) |_ _ _ ___ _ _
 
 namespace xitren::modbus {
 
+/**
+ * @brief CRC-16/ANSI helper for Modbus RTU frames.
+ *
+ * Modbus RTU uses CRC-16/ANSI (polynomial 0xA001, initial 0xFFFF). The
+ * resulting 16-bit checksum is transmitted LSB first, which is reflected by
+ * the `lsb_t<uint16_t>` wrapper type.
+ */
 class crc16ansi {
 public:
+    /**
+     * @brief CRC value type (little-endian wire order).
+     */
     using value_type = func::lsb_t<std::uint16_t>;
 
     /**

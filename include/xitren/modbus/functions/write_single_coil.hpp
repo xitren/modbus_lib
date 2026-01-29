@@ -13,17 +13,23 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief This function is used to process the request of the write_single_coil.
+ * @brief Handle Write Single Coil (0x05) request.
  *
- * @tparam TInputs The input data type.
- * @tparam TCoils The coil data type.
- * @tparam TInputRegisters The input register data type.
- * @tparam THoldingRegisters The holding register data type.
- * @tparam Fifo The FIFO size.
- * @param slave The reference to the Modbus slave object.
- * @param pack The input packet of the request.
+ * The request writes one coil to either ON (0xFF00) or OFF (0x0000) and
+ * echoes the request back as the response.
  *
- * @return An exception object indicating the result of the operation.
+ * Validation performed:
+ * - Request length must match `request_type_read` (fixed size).
+ * - Value must be either `on_coil_value` or `off_coil_value`.
+ * - Address must be within coil storage bounds.
+ *
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception

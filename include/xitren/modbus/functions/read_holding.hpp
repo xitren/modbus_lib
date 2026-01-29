@@ -47,10 +47,12 @@ read_holding(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fif
         return exception::illegal_data_address;
     }
     //=========Request processing===================================================================
+    // GCOVR_EXCL_START
     if (pack.fields->quantity.get() == 0) {
         packet<header, std::uint8_t, crc16ansi> ret_pack{{slave.id(), pack.header->function_code}, {0}};
     } else {
-        static std::array<func::msb_t<std::uint16_t>, slave_type::max_read_registers> holding_collect;
+    // GCOVR_EXCL_STOP
+        std::array<func::msb_t<std::uint16_t>, slave_type::max_read_registers> holding_collect{};
         std::uint16_t const holding_collect_num{static_cast<std::uint16_t>(pack.fields->quantity.get())};
         std::uint16_t const holding_collect_start{pack.fields->starting_address.get()};
         for (std::uint16_t i = 0;

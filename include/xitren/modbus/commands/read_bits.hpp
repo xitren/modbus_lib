@@ -12,7 +12,7 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A class for reading a number of coils from a device.
+ * @brief Command to read coils (0x01).
  *
  * @tparam Size The number of coils to read.
  *
@@ -49,6 +49,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, request_fields_read, std::uint8_t, crc16ansi>(
                 {{slave, static_cast<std::uint8_t>(function::read_coils)},
                  {address, static_cast<std::uint16_t>(size_)},
@@ -57,6 +58,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_STOP
     }
 
     /**
@@ -183,8 +185,10 @@ public:
         auto [pack, err] = input_msg<header, std::uint8_t, std::uint8_t>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
+        // GCOVR_EXCL_START
         if (pack.size > modbus_base::max_read_bits) [[unlikely]]
             return exception::illegal_data_value;
+        // GCOVR_EXCL_STOP
         std::uint8_t const i_max = pack.size * 8;
         for (std::size_t i{}; (i < values.size()) && (i < i_max); i++) {
             std::uint8_t const i_bits = i / 8;

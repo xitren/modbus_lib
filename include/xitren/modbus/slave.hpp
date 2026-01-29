@@ -14,6 +14,13 @@ __ _(_) |_ _ _ ___ _ _
 
 namespace xitren::modbus {
 
+/**
+ * @brief Extended slave with FIFO and extra function handlers.
+ *
+ * `slave_ext` registers additional functions such as FIFO and exception
+ * status operations. It exposes a FIFO buffer to allow user code to preload
+ * data that can be read through the Modbus FIFO function.
+ */
 template <modbus_slave_container TInputs, modbus_slave_container TCoils, modbus_slave_container TInputRegisters,
           modbus_slave_container THoldingRegisters, std::uint16_t Fifo>
 class slave_ext : public slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo> {
@@ -25,8 +32,11 @@ public:
     using function_type       = exception (*)(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>&);
     using function_table_type = std::array<function_type, slave_type::max_function_id + 1>;
     using fifo_type           = xitren::circular_buffer<func::msb_t<std::uint16_t>, Fifo>;
-    using log_type            = xitren::circular_buffer<std::uint8_t, slave_type::log_size>;
+    using log_type            = xitren::circular_buffer<std::uint8_t, log::log_size>;
 
+    /**
+     * @brief Construct an extended slave bound to external storage.
+     */
     constexpr explicit slave_ext(std::uint8_t slave_id, typename slave_type::inputs_type const& inputs,
                                  typename slave_type::coils_type&            coils,
                                  typename slave_type::input_regs_type const& input_regs,
@@ -40,18 +50,29 @@ public:
         slave_type::register_function(function::read_fifo, &functions::read_fifo);
     }
 
+    /**
+     * @brief Returns the FIFO buffer used by Read FIFO function.
+     */
     inline fifo_type&
     fifo() noexcept
     {
         return fifo_;
     }
 
+    /**
+     * @brief Returns the FIFO buffer used by Read FIFO function.
+     */
     [[nodiscard]] inline constexpr fifo_type&
     fifo() const noexcept
     {
         return fifo_;
     }
 
+    /**
+     * @brief Pushes a range of values into the FIFO buffer.
+     *
+     * This helper is convenient for preloading FIFO data.
+     */
     template <std::ranges::common_range Array>
     slave_ext&
     operator<<(Array const& in_data)
@@ -66,6 +87,12 @@ private:
     fifo_type fifo_{};
 };
 
+/**
+ * @brief Default slave using std::array-backed storage.
+ *
+ * This is a ready-to-use slave implementation that owns its storage and uses
+ * fixed-size arrays. It is a good fit for embedded targets with static memory.
+ */
 template <std::uint16_t Inputs, std::uint16_t Coils, std::uint16_t InputRegisters, std::uint16_t HoldingRegisters,
           std::uint16_t Fifo>
 class slave
@@ -81,17 +108,32 @@ protected:
     using holding_regs_type = typename modbus_slave_base_type::holding_regs_type;
 
 public:
+    /**
+     * @brief Construct a slave with owned storage arrays.
+     */
     constexpr explicit slave(std::uint8_t slave_id)
         : modbus_slave_base_type::slave_base(slave_id, inputs_data_, coils_data_, input_registers_data_,
                                              holding_registers_data_)
     {}
 
+    /**
+     * @brief Returns writable input register storage.
+     *
+     * Note: Input registers are typically read-only on the protocol level,
+     * but applications can update them locally through this API.
+     */
     inline input_regs_type&
     input_registers() noexcept
     {
         return input_registers_data_;
     }
 
+    /**
+     * @brief Returns writable input discretes storage.
+     *
+     * Note: Discrete inputs are typically read-only on the protocol level,
+     * but applications can update them locally through this API.
+     */
     inline inputs_type&
     inputs() noexcept
     {

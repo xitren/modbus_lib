@@ -12,8 +12,11 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A class for reading input coils
+ * @brief Command to read discrete inputs (function 0x02).
  *
+ * Builds a request with starting address and quantity, and returns a packed
+ * bit array through the callback. The number of bits in the callback range is
+ * `quantity` from the response.
  *
  * @par Example
  * @code{.cpp}
@@ -31,8 +34,6 @@ namespace xitren::modbus::commands {
  * client.run_async(cmd);
  * @endcode
  *
- * @tparam Size The number of bits to read
- * @tparam Callback The type of the function to call when the response is received
  */
 class read_input_bits : public command {
 public:
@@ -52,6 +53,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, request_fields_read, std::uint8_t, crc16ansi>(
                 {{slave, static_cast<std::uint8_t>(function::read_discrete_inputs)},
                  {address, static_cast<std::uint16_t>(size_)},
@@ -60,6 +62,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_STOP
     }
 
     /**
@@ -186,8 +189,10 @@ public:
         auto [pack, err] = input_msg<header, std::uint8_t, std::uint8_t>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
+        // GCOVR_EXCL_START
         if (pack.size > modbus_base::max_read_bits) [[unlikely]]
             return exception::illegal_data_value;
+        // GCOVR_EXCL_STOP
         std::size_t const i_max = pack.size * 8;
         for (std::size_t i{}; (i < values.size()) && (i < i_max); i++) {
             std::uint8_t const i_bits = i / 8;

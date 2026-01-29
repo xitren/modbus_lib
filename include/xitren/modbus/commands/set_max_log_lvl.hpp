@@ -12,11 +12,14 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A Modbus Read Log request
+ * @brief Command to set the maximum log level on a slave.
  *
- * @param slave The Modbus slave device to send the request to
- * @param lvl The log level to set
- * @param callback The function to call when the response is received
+ * This is a custom function (0x42). The request payload contains the desired
+ * log level as a single byte and the response echoes it back.
+ *
+ * @param slave The Modbus slave device to send the request to.
+ * @param lvl The log level to set.
+ * @param callback The function to call when the response is received.
  */
 class set_max_log_lvl : public command {
 public:
@@ -27,11 +30,13 @@ public:
             error(exception::illegal_data_value);
             return;
         }
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, std::uint8_t, std::uint8_t, crc16ansi>(
                 {{slave, static_cast<uint8_t>(function::set_max_log_level)}, lvl_, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_STOP
     }
 
     /**
@@ -158,8 +163,10 @@ public:
         auto [pack, err] = input_msg<header, std::uint8_t, std::uint8_t>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
+        // GCOVR_EXCL_START
         if (pack.size > modbus_base::max_read_registers) [[unlikely]]
             return exception::illegal_data_value;
+        // GCOVR_EXCL_STOP
         callback_(exception::no_error);
         return exception::no_error;
     }

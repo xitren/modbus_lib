@@ -13,32 +13,21 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief Reads the exception status register of a Modbus slave device.
+ * @brief Handle Read Exception Status (0x07) request.
  *
- * @tparam TInputs Type of the input registers of the slave device.
- * @tparam TCoils Type of the coils of the slave device.
- * @tparam TInputRegisters Type of the input registers of the slave device.
- * @tparam THoldingRegisters Type of the holding registers of the slave device.
- * @tparam Fifo The size of the input queue of the slave device.
- * @param slave The Modbus slave device to read the exception status from.
- * @return exception The exception code returned by the slave device.
+ * This response returns a single status byte describing the slave's
+ * exception state. The request has a fixed length and no additional payload.
  *
- * This function is used to read the exception status register of a Modbus slave device. The exception status register
- * contains information about any errors that occurred during the processing of a Modbus request. The function code for
- * this request is 0x01.
+ * Validation performed:
+ * - Request length must match `request_type_err`.
  *
- * The function checks the length of the input buffer to ensure that it is the correct size for a request of this type.
- * If the length is incorrect, the function returns an exception code of `exception::bad_data`.
- *
- * The function then deserializes the request data from the input buffer, using the `deserialize_no_check` method. The
- * request data consists of a header, which contains the function code, and a number of input registers.
- *
- * The function then constructs a response data structure, which consists of a header, the exception status of the slave
- * device, and a null-terminated string containing any error messages. The function then serializes the response data to
- * the output buffer, using the `serialize` method.
- *
- * Finally, the function returns the exception code of the slave device. If the slave device returned an exception code,
- * this will be returned by the function. Otherwise, an exception code of `exception::no_error` will be returned.
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception

@@ -13,42 +13,28 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief Reads the log of the slave.
+ * @brief Handle custom Read Log request (0x41).
  *
- * @tparam TInputs The input bit field type.
- * @tparam TCoils The coil bit field type.
- * @tparam TInputRegisters The input register field type.
- * @tparam THoldingRegisters The holding register field type.
- * @tparam Fifo The fifo size.
- * @param slave The slave to read the log from.
- * @return exception An exception code indicating the result of the operation.
+ * The log is a circular buffer of bytes recorded by the slave. The request
+ * provides a starting address and quantity; the handler clamps the range to
+ * the available log window and returns the requested slice.
  *
- * This function reads the log of the slave. The log is a circular buffer that stores the last N requests that were made
- * to the slave. The size of the log is defined by the Fifo template parameter.
+ * Request payload:
+ * - address: starting log index
+ * - quantity: number of bytes to return
  *
- * The request structure for this function is defined as follows:
+ * Response payload:
+ * - address: actual start index used
+ * - quantity: number of bytes returned
+ * - data: raw log bytes
  *
- * | Byte  | Name | Size | Description |
- * | ----- | ---- | ---- | ----------- |
- * | 1     | Function Code | 1 | The function code for this request is 0x01. |
- * | 2-3   | Starting Address | 2 | The starting address of the log to read. |
- * | 4-5   | Quantity | 2 | The number of log entries to read. |
- *
- * The response structure for this function is defined as follows:
- *
- * | Byte  | Name | Size | Description |
- * | ----- | ---- | ---- | ----------- |
- * | 1     | Function Code | 1 | The function code for this response is 0x01. |
- * | 2-3   | Starting Address | 2 | The starting address of the log. |
- * | 4-5   | Quantity | 2 | The number of log entries returned. |
- * | 6-n   | Data | n | The data from the log. |
- *
- * The data returned is a sequence of log entries, where each log entry is a variable length depending on the data type
- * of the slave. For example, if the slave is using input registers, each log entry will be 2 bytes.
- *
- * The log is circular, so if the starting address specified is outside of the range of the log, the log will be wrapped
- * around to the beginning. For example, if the log size is 10 and the starting address is 15, then only 5 log entries
- * will be returned.
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception
@@ -62,7 +48,7 @@ read_log(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo>& 
     }
     auto pack = slave.input().template deserialize_no_check<header, request_fields_log, std::uint8_t, crc16ansi>();
     //=========Request processing===================================================================
-    static std::array<std::uint8_t, slave_type::max_read_log_bytes> inputs_collect;
+    std::array<std::uint8_t, slave_type::max_read_log_bytes> inputs_collect{};
     auto                                                            address = pack.fields->address.get();
     auto                                                            size    = pack.fields->quantity.get();
     auto head = static_cast<std::uint16_t>(slave.log().head());

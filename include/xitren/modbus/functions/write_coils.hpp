@@ -13,17 +13,23 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief This function is used to process the request of the write_coils.
+ * @brief Handle Write Multiple Coils (0x0F) request.
  *
- * @tparam TInputs The input data type.
- * @tparam TCoils The coil data type.
- * @tparam TInputRegisters The input register data type.
- * @tparam THoldingRegisters The holding register data type.
- * @tparam Fifo The FIFO size.
- * @param slave The reference to the Modbus slave object.
- * @param pack The input packet of the request.
+ * Validation performed:
+ * - Quantity must be within `1..max_write_bits`.
+ * - Byte count must match the coil quantity.
+ * - Address range must fit into coil storage.
  *
- * @return An exception object indicating the result of the operation.
+ * On success, updates coil values and returns an echo of the starting address
+ * and quantity as required by the Modbus spec.
+ *
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception

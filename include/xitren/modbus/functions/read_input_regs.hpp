@@ -13,17 +13,23 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief This function is used to process the request of the read_input_regs.
+ * @brief Handle Read Input Registers (0x04) request.
  *
- * @tparam TInputs The input data type.
- * @tparam TCoils The coil data type.
- * @tparam TInputRegisters The input register data type.
- * @tparam THoldingRegisters The holding register data type.
- * @tparam Fifo The FIFO size.
- * @param slave The reference to the Modbus slave object.
- * @param pack The input packet of the request.
+ * Validation performed:
+ * - Fixed request length must match `request_type_read`.
+ * - Quantity must be within `1..max_read_registers`.
+ * - Address range must fit into the input register storage.
  *
- * @return An exception object indicating the result of the operation.
+ * On success, the response contains a byte count followed by the requested
+ * register values encoded as big-endian 16-bit words.
+ *
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception
@@ -47,10 +53,12 @@ read_input_regs(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, 
         return exception::illegal_data_address;
     }
     //=========Request processing===================================================================
+    // GCOVR_EXCL_START
     if (pack.fields->quantity.get() == 0) {
         packet<header, std::uint8_t, crc16ansi> ret_pack{{slave.id(), pack.header->function_code}, {0}};
     } else {
-        static std::array<func::msb_t<std::uint16_t>, slave_type::max_read_registers> inputs_collect;
+    // GCOVR_EXCL_STOP
+        std::array<func::msb_t<std::uint16_t>, slave_type::max_read_registers> inputs_collect{};
         std::uint16_t const inputs_collect_num{static_cast<std::uint16_t>(pack.fields->quantity.get())};
         std::uint16_t const inputs_collect_start{pack.fields->starting_address.get()};
         for (std::uint16_t i = 0;

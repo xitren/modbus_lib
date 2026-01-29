@@ -22,7 +22,7 @@ namespace xitren::modbus::functions {
  * @tparam Fifo Size of the FIFO queue.
  *
  * @param slave A reference to the Modbus slave object.
- * @param pack A `request_fields_wr_mask` object that contains the request parameters.
+ * @param pack A `request_fields_wr_multi` object that contains the request parameters.
  * @return An `exception` value indicating the result of the operation.
  *
  * This function is used to write multiple holding register values to the device. The function takes a reference to the

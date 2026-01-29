@@ -34,7 +34,7 @@ FetchContent_MakeAvailable(circular_buffer)
 FetchContent_Declare(
 		patterns
 		GIT_REPOSITORY https://github.com/xitren/patterns.git
-		GIT_TAG        v1.0.6
+		GIT_TAG        v1.0.8
 )
 FetchContent_MakeAvailable(patterns)
 

@@ -63,10 +63,12 @@ read_inputs(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, Fifo
         return exception::illegal_data_address;
     }
     //=========Request processing===================================================================
+    // GCOVR_EXCL_START
     if (pack.fields->quantity.get() == 0) {
         packet<header, std::uint8_t, crc16ansi> ret_pack{{slave.id(), pack.header->function_code}, {0}};
     } else {
-        static std::array<std::uint8_t, slave_type::max_read_bits / 8> inputs_collect;
+    // GCOVR_EXCL_STOP
+        std::array<std::uint8_t, slave_type::max_read_bits / 8> inputs_collect{};
         std::uint16_t const inputs_collect_num{static_cast<std::uint16_t>((pack.fields->quantity.get() % 8)
                                                                               ? (pack.fields->quantity.get() / 8 + 1)
                                                                               : (pack.fields->quantity.get() / 8))};

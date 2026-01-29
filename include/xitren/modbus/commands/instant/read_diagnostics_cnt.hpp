@@ -11,6 +11,16 @@ __ _(_) |_ _ _ ___ _ _
 
 namespace xitren::modbus::commands::instant {
 
+/**
+ * @brief Compile-time diagnostics counter read command.
+ *
+ * The request ADU is generated at compile time using a fixed slave address and
+ * diagnostics sub-function. The callback receives the single counter value.
+ *
+ * @tparam Slave Fixed slave address.
+ * @tparam Sub Diagnostics sub-function.
+ * @tparam Callback Function invoked with the counter value.
+ */
 template <std::uint8_t Slave, diagnostics_sub_function Sub, std::invocable<exception, std::uint16_t> auto Callback>
 class read_diagnostics_cnt : public command {
 

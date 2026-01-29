@@ -205,14 +205,34 @@ public:
         return *this;
     }
 
+    /**
+     * @brief Starts the response timeout timer.
+     *
+     * The timer should trigger `timer_expired()` if no reply is received
+     * within the specified period.
+     *
+     * @param microseconds Timeout duration in microseconds.
+     * @return true if the timer was started successfully.
+     */
     virtual bool
     timer_start(std::size_t microseconds)
         = 0;
 
+    /**
+     * @brief Stops the response timeout timer.
+     *
+     * @return true if the timer was stopped successfully.
+     */
     virtual bool
     timer_stop()
         = 0;
 
+    /**
+     * @brief Optional blocking wait hook.
+     *
+     * In polled environments, override this to sleep/yield while waiting
+     * for incoming data.
+     */
     virtual void
     wait()
     {}
@@ -245,6 +265,12 @@ public:
         }
     }
 
+    /**
+     * @brief Handles an incoming response ADU.
+     *
+     * The behavior depends on the current master state and the pending
+     * command (if any).
+     */
     exception
     received() noexcept override
     {
@@ -368,6 +394,12 @@ public:
     ~master() override = default;
 
 protected:
+    /**
+     * @brief Current master state.
+     *
+     * Marked volatile because it may be updated by ISR-driven receive logic
+     * in embedded deployments.
+     */
     volatile master_state state_{master_state::idle};    // FIXME:
 
 private:
@@ -375,6 +407,11 @@ private:
     volatile command*           command_{nullptr};
     command::command_vault_type vault_{};
 
+    /**
+     * @brief Waits until a reply is processed or an error occurs.
+     *
+     * Uses the `wait()` hook to yield execution while polling for state change.
+     */
     inline bool
     wait_input_msg()
     {

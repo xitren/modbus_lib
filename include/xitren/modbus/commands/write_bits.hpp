@@ -12,7 +12,10 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A class for writing a single coil.
+ * @brief Command to write multiple coils (0x0F).
+ *
+ * The request packs an array of bools into bytes and writes them starting at
+ * the provided address. The callback is invoked once the response is received.
  *
  * @par Example
  * @code{.cpp}
@@ -26,8 +29,6 @@ namespace xitren::modbus::commands {
  * });
  * client.run_async(cmd);
  * @endcode
- *
- * @tparam Size The size of the coil.
  */
 class write_bits : public command {
 public:
@@ -71,6 +72,7 @@ public:
                 }
             }
         }
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, request_fields_wr_single, std::uint8_t, crc16ansi>(
                 {{slave_, static_cast<std::uint8_t>(function::write_multiple_coils)},
                  {address_, static_cast<std::uint16_t>(vals.size()), static_cast<std::uint8_t>(coils_collect_num)},
@@ -78,6 +80,7 @@ public:
                  coils_collect.data()})) {
             error(exception::illegal_data_address);
         }
+        // GCOVR_EXCL_STOP
     }
 
     /**

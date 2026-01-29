@@ -13,15 +13,23 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief This function is used to respond to a request for device identification information.
+ * @brief Handle Read Device Identification (0x2B/0x0E) request.
  *
- * @tparam TInputs The input data type.
- * @tparam TCoils The coil data type.
- * @tparam TInputRegisters The input register data type.
- * @tparam THoldingRegisters The holding register data type.
- * @tparam Fifo The FIFO size.
- * @param slave The Modbus slave object.
- * @return exception The exception code.
+ * Validation performed:
+ * - MEI type must match `modbus_base::mei_type`.
+ * - Read mode must be `individual_access`.
+ * - Object ID must be within supported range.
+ *
+ * The response returns a single identification object (vendor name, product
+ * code, or revision) based on the requested object ID.
+ *
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception
@@ -82,7 +90,7 @@ identification(slave_base<TInputs, TCoils, TInputRegisters, THoldingRegisters, F
         data.fields.object_len = data.size = str.size();
         data.data                          = str.data();
     } break;
-    default:
+    default:    // GCOVR_EXCL_LINE
         return exception::unknown_exception;
     }
     slave.output().template serialize<header, response_identification, char, crc16ansi>(data);

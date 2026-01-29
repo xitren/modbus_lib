@@ -26,7 +26,9 @@
 #include <spdlog/spdlog.h>
 
 #include <atomic>
+#include <chrono>
 
+using namespace std::chrono_literals;
 using namespace xitren::modbus;
 using namespace xitren;
 using namespace xitren::modbus::commands;

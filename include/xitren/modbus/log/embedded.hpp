@@ -5,6 +5,9 @@
 #include <cstdint>
 #include <string>
 
+/**
+ * @brief Log level constants for the embedded logger.
+ */
 #define LOG_LEVEL_TRACE 0
 #define LOG_LEVEL_DEBUG 1
 #define LOG_LEVEL_INFO 2
@@ -19,6 +22,9 @@
 
 namespace xitren::modbus::log {
 
+/**
+ * @brief Default log ring buffer size in bytes.
+ */
 static constexpr std::uint16_t log_size = 1024;
 
 /**
@@ -231,10 +237,19 @@ private:
 #endif
 };
 
+/**
+ * @brief Set the current logging level at runtime.
+ */
 #define LEVEL(LVL) xitren::modbus::log::embedded::set_current_lvl(LVL)
+/**
+ * @brief Get the current logging level.
+ */
 #define GET_LEVEL() xitren::modbus::log::embedded::get_current_lvl()
 
 #if LOG_LEVEL <= LOG_LEVEL_TRACE
+/**
+ * @brief Trace log macro (compiled when LOG_LEVEL <= TRACE).
+ */
 #    define TRACE(...)                                  \
         xitren::modbus::log::embedded                   \
         {                                               \
@@ -267,6 +282,9 @@ private:
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
+/**
+ * @brief Debug log macro (compiled when LOG_LEVEL <= DEBUG).
+ */
 #    define DEBUG(...)                                 \
         xitren::modbus::log::embedded                  \
         {                                              \
@@ -283,6 +301,9 @@ private:
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_INFO
+/**
+ * @brief Info log macro (compiled when LOG_LEVEL <= INFO).
+ */
 #    define INFO(...)                                 \
         xitren::modbus::log::embedded                 \
         {                                             \
@@ -299,6 +320,9 @@ private:
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_WARN
+/**
+ * @brief Warn log macro (compiled when LOG_LEVEL <= WARN).
+ */
 #    define WARN(...)                                 \
         xitren::modbus::log::embedded                 \
         {                                             \
@@ -315,6 +339,9 @@ private:
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_ERROR
+/**
+ * @brief Error log macro (compiled when LOG_LEVEL <= ERROR).
+ */
 #    define ERROR(...)                                 \
         xitren::modbus::log::embedded                  \
         {                                              \
@@ -331,6 +358,9 @@ private:
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_CRITICAL
+/**
+ * @brief Critical log macro (compiled when LOG_LEVEL <= CRITICAL).
+ */
 #    define CRITICAL(...)                                 \
         xitren::modbus::log::embedded                     \
         {                                                 \

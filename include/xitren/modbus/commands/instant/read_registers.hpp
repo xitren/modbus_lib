@@ -11,6 +11,17 @@ __ _(_) |_ _ _ ___ _ _
 
 namespace xitren::modbus::commands::instant {
 
+/**
+ * @brief Compile-time read holding registers command.
+ *
+ * This variant precomputes the request ADU at compile time and keeps the
+ * callback as a template parameter to avoid dynamic allocation.
+ *
+ * @tparam Slave Fixed slave address.
+ * @tparam Address Fixed starting register address.
+ * @tparam Size Number of registers to read.
+ * @tparam Callback Function invoked with the response span.
+ */
 template <std::uint8_t Slave, std::uint16_t Address, std::size_t Size,
           std::invocable<exception, std::uint16_t*, std::uint16_t*> auto Callback>
 class read_registers : public command {
@@ -87,7 +98,6 @@ public:
     exception
     receive(msg_type const& message) noexcept override
     {
-        static std::array<std::uint16_t, modbus_base::max_read_registers> values{};
         auto [pack, err] = input_msg<header, std::uint8_t, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]] {
             Callback(err, nullptr, nullptr);
@@ -97,14 +107,17 @@ public:
             Callback(err, nullptr, nullptr);
             return exception::illegal_data_value;
         }
-        for (std::size_t i{}; (i < values.size()) && (i < pack.size); i++) {
-            values[i] = pack.data[i].get();
+        for (std::size_t i{}; (i < values_.size()) && (i < pack.size); i++) {
+            values_[i] = pack.data[i].get();
         }
-        Callback(exception::no_error, values.begin(), values.begin() + pack.size);
+        Callback(exception::no_error, values_.begin(), values_.begin() + pack.size);
         return exception::no_error;
     }
 
     ~read_registers() noexcept override = default;
+
+private:
+    std::array<std::uint16_t, modbus_base::max_read_registers> values_{};
 };
 
 }    // namespace xitren::modbus::commands::instant

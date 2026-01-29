@@ -12,10 +12,10 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /*!
- * @brief Class for representing a Modbus Read Input Registers request
+ * @brief Command to read input registers (0x04).
  *
- * This class represents a Modbus Read Input Registers request. It is used to request the
- * contents of a contiguous block of input registers from a Modbus device.
+ * This class requests a contiguous block of input registers and returns the
+ * decoded values through the callback.
  *
  * @par Example Usage
  * @code
@@ -42,11 +42,13 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, request_fields_read, func::msb_t<std::uint16_t>, crc16ansi>(
                 {{slave, static_cast<uint8_t>(function::read_input_registers)}, {address, size_}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_STOP
     }
 
     inline iterator
@@ -114,16 +116,17 @@ public:
     exception
     receive(msg_type const& message) noexcept override
     {
-        static std::array<std::uint16_t, modbus_base::max_read_registers> values{};
         auto [pack, err] = input_msg<header, std::uint8_t, func::msb_t<std::uint16_t>>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
+        // GCOVR_EXCL_START
         if (pack.size > modbus_base::max_read_registers) [[unlikely]]
             return exception::illegal_data_value;
-        for (std::size_t i{}; (i < values.size()) && (i < pack.size); i++) {
-            values[i] = pack.data[i].get();
+        // GCOVR_EXCL_STOP
+        for (std::size_t i{}; (i < values_.size()) && (i < pack.size); i++) {
+            values_[i] = pack.data[i].get();
         }
-        callback_(exception::no_error, values.begin(), values.begin() + pack.size);
+        callback_(exception::no_error, values_.begin(), values_.begin() + pack.size);
         return exception::no_error;
     }
 
@@ -133,6 +136,7 @@ private:
     std::size_t               size_;
     types::callback_regs_type callback_;
     msg_type                  msg_output_{};
+    std::array<std::uint16_t, modbus_base::max_read_registers> values_{};
 };
 
 }    // namespace xitren::modbus::commands

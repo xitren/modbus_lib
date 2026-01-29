@@ -12,14 +12,13 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::commands {
 
 /**
- * @brief A class for reading device identification data from a Modbus device.
+ * @brief Command to read device identification (0x2B/0x0E).
  *
- * This class is used to read device identification data from a Modbus device. The device identification data includes
- * the manufacturer name, product code, serial number, and firmware version. The data is read using the
- * ReadDeviceIdentification function.
+ * Requests a single identification object by object ID and returns the
+ * payload as a byte span to the callback.
  *
- * The response from the device is processed by the receive method, which calls the provided callback function with the
- * response data.
+ * Supported object IDs are defined by `object_id_code` and include vendor
+ * name, product code, and major/minor revision.
  */
 class read_identification : public command {
 public:
@@ -37,6 +36,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, request_identification, std::uint8_t, crc16ansi>(
                 {{slave, static_cast<std::uint8_t>(function::read_device_identification)},
                  {modbus_base::mei_type, static_cast<std::uint8_t>(identification_id::individual_access), address},
@@ -45,6 +45,7 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_STOP
     }
 
     /**
@@ -168,13 +169,12 @@ public:
     exception
     receive(msg_type const& message) noexcept override
     {
-        static std::array<char, modbus_base::max_pdu_length> values{};
         auto [pack, err] = input_msg<header, response_identification, std::uint8_t>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
-        for (std::size_t i{}; (i < values.size()) && (i < pack.size); i++) {}
-        std::copy(pack.data, pack.data + pack.size, values.begin());
-        callback_(exception::no_error, pack.fields->object_id, values.begin(), values.begin() + pack.size);
+        for (std::size_t i{}; (i < values_.size()) && (i < pack.size); i++) {}
+        std::copy(pack.data, pack.data + pack.size, values_.begin());
+        callback_(exception::no_error, pack.fields->object_id, values_.begin(), values_.begin() + pack.size);
         return exception::no_error;
     }
 
@@ -187,6 +187,7 @@ public:
 private:
     types::callback_identification_type callback_;
     msg_type                            msg_output_{};
+    std::array<char, modbus_base::max_pdu_length> values_{};
 };
 
 }    // namespace xitren::modbus::commands

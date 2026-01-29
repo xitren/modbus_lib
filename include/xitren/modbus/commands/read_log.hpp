@@ -11,12 +11,16 @@ __ _(_) |_ _ _ ___ _ _
 
 namespace xitren::modbus::commands {
 /**
- * @brief A Modbus Read Log request
+ * @brief Command to read the custom log buffer (0x41).
  *
- * @param slave The Modbus slave device to send the request to
- * @param address The starting register address to read from
- * @param size The number of registers to read
- * @param callback The function to call when the response is received
+ * The request includes a log address and quantity. The response returns the
+ * actual start address and the raw log bytes, which are forwarded to the
+ * callback.
+ *
+ * @param slave The Modbus slave device to send the request to.
+ * @param address The starting log index to read from.
+ * @param size The number of log bytes to read.
+ * @param callback The function to call when the response is received.
  */
 class read_log : public command {
 public:
@@ -28,11 +32,13 @@ public:
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_START
         if (!msg_output_.template serialize<header, request_fields_log, func::msb_t<std::uint16_t>, crc16ansi>(
                 {{slave, static_cast<uint8_t>(function::read_log)}, {address, size_}, 0, nullptr})) {
             error(exception::illegal_data_address);
             return;
         }
+        // GCOVR_EXCL_STOP
     }
 
     /**
@@ -156,14 +162,15 @@ public:
     exception
     receive(msg_type const& message) noexcept override
     {
-        static std::array<std::uint8_t, modbus_base::max_read_log_bytes> values{};
         auto [pack, err] = input_msg<header, request_fields_log, std::uint8_t>(slave(), message);
         if (error(err) != exception::no_error) [[unlikely]]
             return err;
+        // GCOVR_EXCL_START
         if (pack.size > modbus_base::max_read_registers) [[unlikely]]
             return exception::illegal_data_value;
-        std::copy(pack.data, pack.data + pack.size, values.begin());
-        callback_(exception::no_error, pack.fields->address.get(), values.begin(), values.begin() + pack.size);
+        // GCOVR_EXCL_STOP
+        std::copy(pack.data, pack.data + pack.size, values_.begin());
+        callback_(exception::no_error, pack.fields->address.get(), values_.begin(), values_.begin() + pack.size);
         return exception::no_error;
     }
 
@@ -177,6 +184,7 @@ private:
     std::size_t               size_;
     types::callback_logs_type callback_;
     msg_type                  msg_output_{};
+    std::array<std::uint8_t, modbus_base::max_read_log_bytes> values_{};
 };
 
 }    // namespace xitren::modbus::commands

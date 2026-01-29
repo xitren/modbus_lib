@@ -12,6 +12,14 @@
 
 namespace xitren::modbus {
 
+/**
+ * @brief Common buffer and callback types used by Modbus commands.
+ *
+ * This namespace groups frequently used aliases for payload buffers and
+ * callbacks passed to command objects. The aliases are intentionally sized to
+ * Modbus limits defined in `modbus_base`, so command implementations can rely
+ * on consistent limits across the library.
+ */
 namespace types {
 using bits_array_type        = std::array<bool, modbus_base::max_read_bits>;
 using array_type             = std::array<std::uint16_t, modbus_base::max_read_registers>;
@@ -23,6 +31,26 @@ using callback_bits_type           = std::function<void(exception, bool*, bool*)
 using callback_regs_type           = std::function<void(exception, std::uint16_t*, std::uint16_t*)>;
 }    // namespace types
 
+/**
+ * @brief Base class for all Modbus master commands.
+ *
+ * A command encapsulates the request payload (what the master sends) and the
+ * logic for parsing the corresponding response. Concrete commands implement:
+ *
+ * - `begin()/end()/size()` to expose the request buffer;
+ * - `receive()` to parse a response into their internal state;
+ * - `clone()` to allow the master to store a copy while waiting for a reply.
+ *
+ * The class is intentionally minimal and stateless beyond the slave ID, start
+ * address, and error code, so it can be safely allocated on the stack and
+ * cloned into a fixed-size vault by the master.
+ *
+ * Typical lifecycle:
+ * 1) Construct command (e.g. read registers);
+ * 2) Send via `master::run_async()` or `operator<<`;
+ * 3) Receive via `master::received()` + `operator>>`;
+ * 4) Inspect parsed data and error.
+ */
 class command {
     template <typename T, size_t Size>
     friend xitren::circular_buffer<T, Size>&
@@ -36,85 +64,91 @@ protected:
     using const_iterator = std::uint8_t const*;
 
 public:
-    static constexpr std::size_t command_buffer_max = 370;
+    /**
+     * @brief Maximum size for a command clone vault.
+     *
+     * The master stores a pending command in a fixed-size memory buffer to
+     * avoid dynamic allocation in embedded systems. A command implementation
+     * must fit into this buffer when cloned.
+     */
+    static constexpr std::size_t command_buffer_max = 640;
     using command_vault_type                        = std::aligned_storage_t<command_buffer_max, 1>;
     using msg_type                                  = packet_accessor<modbus_base::max_adu_length>;
 
     /**
-     * @brief virtual destructor
+     * @brief Virtual destructor.
      */
     virtual ~command() noexcept = default;
 
     /**
-     * @brief clones the command
+     * @brief Clones the command into a fixed-size vault.
      *
-     * @param vault the memory to clone the command into
-     * @return modbus_command* a pointer to the cloned command
+     * This is used by the master to keep a pending request while waiting
+     * for a response without using dynamic allocation.
+     *
+     * @param vault The memory buffer to clone into.
+     * @return command* Pointer to the cloned command.
      */
     virtual command*
     clone(command_vault_type&) const noexcept = 0;
 
     /**
-     * @brief clones the command
+     * @brief Clones the command with dynamic storage.
      *
-     * @return std::shared_ptr<modbus_command> a shared pointer to the cloned command
+     * This overload is convenient for user code that needs ownership
+     * semantics (e.g. queuing commands).
+     *
+     * @return std::shared_ptr<command> Shared pointer to a cloned command.
      */
     virtual std::shared_ptr<command>
     clone() const noexcept = 0;
 
     /**
-     * @brief returns an iterator to the beginning of the command
+     * @brief Returns a mutable iterator to the start of the request buffer.
      *
-     * @return iterator an iterator to the beginning of the command
+     * The buffer contents are the exact bytes to be sent to the slave.
      */
     virtual inline iterator
     begin() noexcept = 0;
 
     /**
-     * @brief returns an iterator to the beginning of the command
-     *
-     * @return const_iterator an iterator to the beginning of the command
+     * @brief Returns a read-only iterator to the start of the request buffer.
      */
     virtual inline const_iterator
     begin() const noexcept = 0;
 
     /**
-     * @brief returns an iterator to the end of the command
-     *
-     * @return iterator an iterator to the end of the command
+     * @brief Returns a mutable iterator past the end of the request buffer.
      */
     virtual inline iterator
     end() noexcept = 0;
 
     /**
-     * @brief returns an iterator to the end of the command
-     *
-     * @return const_iterator an iterator to the end of the command
+     * @brief Returns a read-only iterator past the end of the request buffer.
      */
     virtual inline const_iterator
     end() const noexcept = 0;
 
     /**
-     * @brief returns the size of the command
-     *
-     * @return std::size_t the size of the command
+     * @brief Returns the size of the request buffer in bytes.
      */
     virtual inline std::size_t
     size() noexcept = 0;
 
     /**
-     * @brief returns the size of the command
-     *
-     * @return std::size_t the size of the command
+     * @brief Returns the size of the request buffer in bytes.
      */
     virtual inline std::size_t
     size() const noexcept = 0;
 
     /**
-     * @brief receives a modbus message
+     * @brief Receives and parses a Modbus response.
      *
-     * @param message the modbus message to receive
-     * @return exception the error code of the operation
+     * Default implementation just clears the error state. Derived commands
+     * should parse `message` and set `error_` accordingly.
+     *
+     * @param message The Modbus response ADU.
+     * @return exception The resulting error code.
      */
     virtual exception
     receive(msg_type const&) noexcept
@@ -123,7 +157,10 @@ public:
     }
 
     /**
-     * @brief indicates that no response was received
+     * @brief Called when a response timeout occurs.
+     *
+     * The default behavior marks the command as failed with `bad_slave`.
+     * Derived commands may override to provide custom timeout handling.
      */
     virtual void
     no_answer() noexcept
@@ -132,9 +169,7 @@ public:
     }
 
     /**
-     * @brief returns the id of the slave device
-     *
-     * @return std::uint8_t the id of the slave device
+     * @brief Returns the slave ID this command targets.
      */
     inline std::uint8_t
     slave() noexcept
@@ -143,9 +178,7 @@ public:
     }
 
     /**
-     * @brief returns the id of the slave device
-     *
-     * @return std::uint8_t the id of the slave device
+     * @brief Returns the slave ID this command targets.
      */
     [[nodiscard]] inline std::uint8_t
     slave() const noexcept
@@ -154,9 +187,7 @@ public:
     }
 
     /**
-     * @brief returns the error code of the last operation
-     *
-     * @return exception the error code of the last operation
+     * @brief Returns the error code of the last operation.
      */
     inline exception
     error() noexcept
@@ -165,9 +196,7 @@ public:
     }
 
     /**
-     * @brief returns the error code of the last operation
-     *
-     * @return exception the error code of the last operation
+     * @brief Returns the error code of the last operation.
      */
     [[nodiscard]] inline exception
     error() const noexcept
@@ -177,10 +206,10 @@ public:
 
 protected:
     /**
-     * @brief constructs a new modbus command
+     * @brief Constructs a Modbus command.
      *
-     * @param slave the id of the slave device
-     * @param address the starting address of the data to be read or written
+     * @param slave The target slave ID.
+     * @param address The starting register/bit address.
      */
     constexpr command(std::uint8_t slave, std::uint16_t address) noexcept : slave_{slave}, address_{address} {}
 
@@ -203,15 +232,17 @@ protected:
     }
 
     /**
-     * @brief a helper function to deserialize a modbus message
+     * @brief Helper to deserialize a Modbus response into header/fields/data.
      *
-     * @tparam Header the type of the modbus header
-     * @tparam Fields the types of the modbus fields
-     * @tparam Type the type of the data
-     * @param slave the id of the slave device
-     * @param message the modbus message to deserialize
-     * @return std::pair<msg_type::fields_out_ptr<Header, Fields, Type>, exception> a pair containing the deserialized
-     * data and the error code
+     * This validates the slave ID and the error response bit. CRC validation
+     * is handled by `packet_accessor`.
+     *
+     * @tparam Header Modbus header type.
+     * @tparam Fields Modbus fields type.
+     * @tparam Type Payload element type.
+     * @param slave Expected slave ID.
+     * @param message The input message buffer.
+     * @return Pair of deserialized view and error code.
      */
     template <typename Header, typename Fields, typename Type>
     inline constexpr std::pair<msg_type::fields_out_ptr<Header, Fields, Type>, exception>
@@ -235,11 +266,9 @@ private:
 };
 
 /**
- * @brief overloads the left shift operator for the circular buffer
+ * @brief Appends a command's raw request bytes into a circular buffer.
  *
- * @param buffer the circular buffer to shift
- * @param in_data the data to shift into the circular buffer
- * @return xitren::circular_buffer<T, Size>& a reference to the shifted circular buffer
+ * This is useful for queueing outgoing requests in a FIFO transport layer.
  */
 template <typename T, size_t Size>
 xitren::circular_buffer<T, Size>&
@@ -253,11 +282,10 @@ operator<<(xitren::circular_buffer<T, Size>& buffer, command const& in_data)
 }
 
 /**
- * @brief Overload of the right shift operator for the circular buffer
+ * @brief Parses a command response from a circular buffer.
  *
- * @param buffer the circular buffer to shift
- * @param out_data the data to shift out of the circular buffer
- * @return xitren::circular_buffer<T, Size>& a reference to the shifted circular buffer
+ * The function drains as many bytes as possible from the buffer into a
+ * temporary message and then calls `command::receive()` to decode it.
  */
 template <typename T, size_t Size>
 xitren::circular_buffer<T, Size>&

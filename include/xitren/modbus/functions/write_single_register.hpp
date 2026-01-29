@@ -13,22 +13,22 @@ __ _(_) |_ _ _ ___ _ _
 namespace xitren::modbus::functions {
 
 /**
- * @brief Writes single register values to the device.
+ * @brief Handle Write Single Register (0x06) request.
  *
- * @tparam TInputs Type of the input buffer.
- * @tparam TCoils Type of the coils buffer.
- * @tparam TInputRegisters Type of the input registers buffer.
- * @tparam THoldingRegisters Type of the holding registers buffer.
- * @tparam Fifo Size of the FIFO queue.
+ * The request writes one holding register and echoes the request back in the
+ * response.
  *
- * @param slave A reference to the Modbus slave object.
- * @param pack An object that contains the request parameters.
- * @return An `exception` value indicating the result of the operation.
+ * Validation performed:
+ * - Request length must match `request_type_read` (fixed size).
+ * - Address must be within holding register storage bounds.
  *
- * This function is used to write single holding register values to the device. The function takes a reference to the
- * Modbus slave object, which contains the input and output buffers for the request. The function deserializes the
- * request data, checks the parameters, and then processes the request. The function updates the holding register values
- * in the slave object and serializes the response data.
+ * @tparam TInputs Input discretes container type.
+ * @tparam TCoils Coils container type.
+ * @tparam TInputRegisters Input registers container type.
+ * @tparam THoldingRegisters Holding registers container type.
+ * @tparam Fifo FIFO depth.
+ * @param slave Reference to the slave instance handling the request.
+ * @return exception::no_error on success or a Modbus exception code otherwise.
  */
 template <typename TInputs, typename TCoils, typename TInputRegisters, typename THoldingRegisters, std::uint16_t Fifo>
 exception

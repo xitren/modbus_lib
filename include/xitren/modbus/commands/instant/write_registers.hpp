@@ -11,6 +11,19 @@ __ _(_) |_ _ _ ___ _ _
 
 namespace xitren::modbus::commands::instant {
 
+/**
+ * @brief Compile-time write multiple registers command.
+ *
+ * The request payload is fully generated at compile time, including the data
+ * array. This is intended for static configurations where register values are
+ * known at build time.
+ *
+ * @tparam Slave Fixed slave address.
+ * @tparam Address Fixed starting register address.
+ * @tparam Size Number of registers to write.
+ * @tparam Data Register values to write.
+ * @tparam Callback Function invoked after the response.
+ */
 template <std::uint8_t Slave, std::uint16_t Address, std::size_t Size, std::array<std::uint16_t, Size> Data,
           std::invocable<exception> auto Callback>
 class write_registers : public command {
