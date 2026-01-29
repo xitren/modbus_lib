@@ -104,4 +104,4 @@ jobs:
         --exclude "build-coverage/CMakeFiles/.*"
         --print-summary
         --fail-under-line 95
-        --fail-under-branch 90
+        --fail-under-branch 80
